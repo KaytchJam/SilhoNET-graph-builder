@@ -6,7 +6,7 @@ interface GraphExporter {
     // deserialize(data: string): kGraph<MetaNode,string>;
 }
 
-class GraphMLExporter implements GraphExporter {
+export class GraphMLExporter implements GraphExporter {
   
     /** Add an XML key-node */
     private add_key(id: string, gtarget: string, attr_name: string, attr_type: string): string {
