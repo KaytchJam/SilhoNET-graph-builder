@@ -73,6 +73,8 @@ function select(pos: Readonly<vec2>, rg: RenderGraph, thresh: number = 5.0): nod
 
 function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
     const canvas_ref = React.useRef<HTMLCanvasElement>(null);
+    const para_ref = React.useRef<HTMLParagraphElement>(null);
+
     const mouse_pos = React.useRef<vec2>([0, 0]);
     const rgraph = React.useRef<RenderGraph>(null);
     const left_click = React.useRef<boolean>(false);
@@ -113,6 +115,7 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
 
     React.useEffect(() => {
         const canvas: HTMLCanvasElement | null = canvas_ref.current;
+        const para: HTMLParagraphElement | null = para_ref.current;
 
         if (canvas == null) {
             console.error("Couldn't find a canvas reference");
@@ -177,6 +180,8 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
                 left_click.current = false;
             }
 
+            para!.textContent = `Selected node: ${ node_picked === null ? "NONE" : node_picked }`;
+
             draw_scene(gl, tplane, rg);
             requestAnimationFrame(render_loop);
         }
@@ -188,6 +193,7 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
         <div>
             <p>Another canvas, with a texture now.</p>
             <canvas ref={canvas_ref} height="400" width="600"></canvas>
+            <p ref={para_ref}></p>
         </div>
     );
 }
