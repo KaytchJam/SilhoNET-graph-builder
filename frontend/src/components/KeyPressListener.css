@@ -1,0 +1,52 @@
+
+.green-text {
+    color: #00FF00;
+}
+
+.black-text {
+    color: #000000;
+}
+
+.qte-view {
+    border-color: black;
+    border-radius: 5px;
+    border: solid;
+    box-shadow: 5px 5px 10px #000000AA;
+    width: 80%;
+    margin: 0 auto;
+    background-color: #FFFFFF;
+    transition-timing-function: ease-in-out;
+    transition-duration: 0.2s;
+}
+
+.qte-view:hover {
+    background-color: #FECEB1;
+}
+
+.qte-p {
+    width: 25%;
+    display: inline-block;
+}
+
+.qte-p-header {
+    margin-top: 2px;
+}
+
+.arrow-im {
+    width: 25%;
+}
+
+.arrow-opaque {
+    filter: opacity(50%);
+}
+
+.p-streak {
+    font-weight: bold;
+    padding-top: 5px;
+    font-size: 24px;
+}
+
+.gold-txt {
+    color: #D4AF37;
+    font-size: 36px;
+}
