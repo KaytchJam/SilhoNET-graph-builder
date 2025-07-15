@@ -23,15 +23,15 @@ export function metanode_build(x: number, y: number, name: string): MetaNode {
 }
 
 export class RenderGraph {
-    topology: kGraph<MetaNode,string>;
-    program: WebGLProgram;
+    private topology: kGraph<MetaNode,string>;
+    private program: WebGLProgram;
     
-    vao: WebGLVertexArrayObject;
-    vbo: WebGLBuffer;
-    ebo: WebGLBuffer;
+    private vao: WebGLVertexArrayObject;
+    private vbo: WebGLBuffer;
+    private ebo: WebGLBuffer;
 
-    dirty_nodes: boolean;
-    dirty_edges: boolean;
+    private dirty_nodes: boolean;
+    private dirty_edges: boolean;
 
     constructor(gl: WebGL2RenderingContext) {
         this.topology = new kGraph<MetaNode,string>();
@@ -92,7 +92,7 @@ export class RenderGraph {
     }
 
     /** Exposes the internal graph of the RenderGraph and updates the dirty field if a change in the number of edges or nodes is observed*/
-    update(M: GraphMap<MetaNode,string>): RenderGraph {
+    public update(M: GraphMap<MetaNode,string>): RenderGraph {
         const prev_size: GraphSize = { num_nodes: this.topology.num_nodes(), num_edges: this.topology.num_edges() };
         this.topology = M(this.topology);
         this.dirty_nodes = prev_size.num_nodes !== this.topology.num_nodes();
@@ -100,13 +100,17 @@ export class RenderGraph {
         return this;
     }
 
-    peek(M: (g: Readonly<kGraph<MetaNode,string>>) => void): RenderGraph {
+    public peek(M: (g: Readonly<kGraph<MetaNode,string>>) => void): RenderGraph {
         M(this.topology);
         return this;
     };
 
+    public is_dirty() {
+        return this.dirty_edges || this.dirty_nodes;
+    }
+
     /** Draws this RenderGraph */
-    draw(gl: WebGL2RenderingContext) {
+    public draw(gl: WebGL2RenderingContext) {
 
         if (this.dirty_nodes) {
             // UPDATE VERTICES
