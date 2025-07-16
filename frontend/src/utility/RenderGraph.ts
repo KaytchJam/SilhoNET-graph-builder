@@ -109,6 +109,10 @@ export class RenderGraph {
         return this.dirty_edges || this.dirty_nodes;
     }
 
+    public expose_graph(): kGraph<MetaNode, string> {
+        return this.topology;
+    }
+
     /** Draws this RenderGraph */
     public draw(gl: WebGL2RenderingContext) {
 
