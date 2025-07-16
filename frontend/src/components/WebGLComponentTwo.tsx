@@ -4,6 +4,7 @@ import { TexturePlane } from "../utility/TexturePlane";
 import { kGraph, type node_idx_t } from "../utility/graph_utility/KGraph";
 import { RenderGraph, metanode_build, type MetaNode } from "../utility/RenderGraph";
 import { ClickEnum, get_lc_states, type TClickEnum } from "../utility/UIStates";
+import { type GraphExporter, GraphMLExporter, DotExporter } from "../utility/ExportGraph";
 
 // Convert "image" File types into HTMLImageElements
 function file_to_image(file: File): Promise<HTMLImageElement> {
@@ -46,6 +47,7 @@ function draw_scene(gl: WebGL2RenderingContext, tp: TexturePlane, rg: RenderGrap
     rg.draw(gl);
 }
 
+/** Find the nearest Graph node to the user's mouse within a given threshold. */
 function select(pos: Readonly<vec2>, rg: RenderGraph, thresh: number = 5.0): node_idx_t | null {
     const thresh_sqred: number = thresh * thresh;
     let match: number = -1;
@@ -79,10 +81,41 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
     const rgraph = React.useRef<RenderGraph>(null);
     const left_click = React.useRef<boolean>(false);
     const selected_node = React.useRef<node_idx_t>(null);
+    const [exportFormat, setExportFormat] = React.useState<"graphml" | "dot">("graphml");
 
     // need a graph data structure internally
     const img_in: HTMLImageElement = bg.image_input;
 
+    const handleExport = () => {
+        const rg = rgraph.current;
+        if (!rg) return;
+
+        const graph: kGraph<MetaNode,string> = rg.expose_graph();
+
+        let exporter: GraphExporter;
+        switch (exportFormat) {
+            case "graphml":
+                exporter = new GraphMLExporter();
+                break;
+            case "dot":
+                exporter = new DotExporter();
+                break;
+            default:
+                console.error("Unsupported format");
+                return;
+        }
+
+        const output = exporter.serialize(graph); // assumes this returns a string
+        const blob = new Blob([output], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `graph_export.${exportFormat}`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+    
     React.useEffect(() => {
         const canvas: HTMLCanvasElement | null = canvas_ref.current;
 
@@ -194,6 +227,14 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
             <p>Another canvas, with a texture now.</p>
             <canvas ref={canvas_ref} height="400" width="600"></canvas>
             <p ref={para_ref}></p>
+            <div>
+                <label>Export format: </label>
+                <select value={exportFormat} onChange={(e) => setExportFormat(e.target.value as any)}>
+                    <option value="graphml">GraphML</option>
+                    <option value="dot">DOT</option>
+                </select>
+                <button onClick={handleExport}>Export Graph</button>
+            </div>
         </div>
     );
 }
@@ -211,7 +252,7 @@ export default function WebGLComponentTwo(): React.JSX.Element {
             <p>Some text some text ya feeeeel me</p>
 
             <form action={(f: FormData) => accept_file(f, set_image_in)}>
-                <input type="file" accept="image/jpeg" name="image-input" required/>
+                <input type="file" accept="image/jpeg" name="image-input"required/>
                 <input type="submit" name="image-submit"/>
             </form>
             { image_in && <WebGLCanvas image_input={image_in}/> }
