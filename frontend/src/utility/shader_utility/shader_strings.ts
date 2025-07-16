@@ -14,12 +14,15 @@ export const texture_plane_vs_text = glsl`
 `;
         
 export const texture_plane_fs_text = glsl`
+    precision mediump float;
     varying lowp vec2 texCoord;
     
     uniform sampler2D uSampler;
     
     void main() {
-        gl_FragColor = texture2D(uSampler, texCoord);
+        vec4 color = texture2D(uSampler, texCoord);
+        vec4 white = vec4(1.0);
+        gl_FragColor = mix(color, white, 0.4);
     }
 `;
 
