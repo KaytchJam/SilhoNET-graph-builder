@@ -1,7 +1,7 @@
 import { kGraph } from "./graph_utility/KGraph";
 import type { MetaNode } from "./RenderGraph";
 
-interface GraphExporter {
+export interface GraphExporter {
     serialize(G: kGraph<MetaNode,string>): string;
     // deserialize(data: string): kGraph<MetaNode,string>;
 }
@@ -14,7 +14,7 @@ export class GraphMLExporter implements GraphExporter {
   
     /** Add an XML key-node */
     private add_key(id: string, gtarget: string, attr_name: string, attr_type: string): string {
-        return `\t<key id="${id}" for="${gtarget}" attr.name="${attr_name}" attr.type="${attr_type}">\n`;
+        return `\t<key id="${id}" for="${gtarget}" attr.name="${attr_name}" attr.type="${attr_type}"/>\n`;
     }
     
     /** Add an XML Graph-node */
@@ -55,6 +55,12 @@ export class GraphMLExporter implements GraphExporter {
 
         data += "\t</graph>\n</graphml>";
         return data;
+    }
+}
+
+export class DotExporter implements GraphExporter {
+    serialize(_: kGraph<MetaNode, string>): string {
+        return "Incomplete";
     }
 }
 
