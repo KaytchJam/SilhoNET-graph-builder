@@ -253,7 +253,7 @@ export default function WebGLComponentTwo(): React.JSX.Element {
 
             <form action={(f: FormData) => accept_file(f, set_image_in)}>
                 <input type="file" accept="image/jpeg" name="image-input"required/>
-                <input type="submit" name="image-submit"/>
+                <button type="submit" name="image-submit">Create Canvas</button>
             </form>
             { image_in && <WebGLCanvas image_input={image_in}/> }
         </div>
