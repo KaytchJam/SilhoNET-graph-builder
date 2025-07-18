@@ -5,6 +5,7 @@ import { kGraph, type node_idx_t } from "../utility/graph_utility/KGraph";
 import { RenderGraph, metanode_build, type MetaNode } from "../utility/RenderGraph";
 import { ClickEnum, get_lc_states, type TClickEnum } from "../utility/UIStates";
 import { type GraphExporter, GraphMLExporter, DotExporter } from "../utility/ExportGraph";
+import { MouseTracker } from "../utility/MouseTracker";
 
 // Convert "image" File types into HTMLImageElements
 function file_to_image(file: File): Promise<HTMLImageElement> {
@@ -36,7 +37,7 @@ async function accept_file(f: FormData, setter: React.Dispatch<React.SetStateAct
     }
 }
 
-function draw_scene(gl: WebGL2RenderingContext, tp: TexturePlane, rg: RenderGraph) {
+function draw_scene(gl: WebGL2RenderingContext, tp: TexturePlane, rg: RenderGraph, tr: MouseTracker) {
     gl.clearColor(1.0, 1.0, 1.0, 1.0);
     gl.enable(gl.DEPTH_TEST);
     gl.clearDepth(1.0);
@@ -45,6 +46,7 @@ function draw_scene(gl: WebGL2RenderingContext, tp: TexturePlane, rg: RenderGrap
     
     tp.draw(gl);
     rg.draw(gl);
+    tr.draw(gl);
 }
 
 /** Find the nearest Graph node to the user's mouse within a given threshold. */
@@ -163,6 +165,7 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
         }
 
         const tplane: TexturePlane = new TexturePlane(canvas, gl, img_in);
+        const tracker: MouseTracker = new MouseTracker(gl);
         rgraph.current = new RenderGraph(gl);
 
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -176,6 +179,7 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
             const m_pos: number[] | Float32Array = mouse_pos.current.slice();
             const l_clicked: boolean = left_click.current;
             const hover_node: number | null = select(m_pos as vec2, rg, 8.0);
+            tracker.update_position([m_pos[0], m_pos[1]]);
 
             if (l_clicked) {
                 const lc_state: TClickEnum = get_lc_states({ node_picked, hover_node });
@@ -191,10 +195,12 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
                         break;
 
                     case ClickEnum.LC_ADD_EDGE:
-                        rg.update((g: kGraph<MetaNode,string>): kGraph<MetaNode,string> => {
-                            g.add_edge(node_picked!, hover_node!, "");
-                            return g;
-                        });
+                        if (!rg.expose_graph().has_outgoing_to(node_picked!, hover_node!)) {
+                            rg.update((g: kGraph<MetaNode,string>): kGraph<MetaNode,string> => {
+                                g.add_edge(node_picked!, hover_node!, "");
+                                return g;
+                            });
+                        }
                         selected_node.current = null;
                         break;
 
@@ -215,7 +221,7 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
 
             para!.textContent = `Selected node: ${ node_picked === null ? "NONE" : node_picked }`;
 
-            draw_scene(gl, tplane, rg);
+            draw_scene(gl, tplane, rg, tracker);
             requestAnimationFrame(render_loop);
         }
 
