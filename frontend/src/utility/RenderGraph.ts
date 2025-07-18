@@ -1,4 +1,4 @@
-import { kGraph } from "./graph_utility/KGraph";
+import { kGraph, type node_idx_t } from "./graph_utility/KGraph";
 import type { vec2 } from "gl-matrix";
 import { init_shader_program } from "./shader_utility/shader_funcs";
 import { render_graph_vs_text, render_graph_fs_text } from "./shader_utility/shader_strings";
@@ -30,6 +30,9 @@ export class RenderGraph {
     private vbo: WebGLBuffer;
     private ebo: WebGLBuffer;
 
+    private uHoverLocation: WebGLUniformLocation;
+    private uSelectLocation: WebGLUniformLocation;
+
     private dirty_nodes: boolean;
     private dirty_edges: boolean;
 
@@ -51,7 +54,7 @@ export class RenderGraph {
 
         gl.vertexAttribPointer(
             aVPos,
-            2,
+            3,
             gl.FLOAT,
             false,
             0,
@@ -59,22 +62,30 @@ export class RenderGraph {
         );
 
         gl.enableVertexAttribArray(aVPos);
+
+        this.uHoverLocation = gl.getUniformLocation(this.program, "uHoverIndex")!;
+        this.uSelectLocation = gl.getUniformLocation(this.program, "uSelectedIndex")!;
+
+        gl.useProgram(this.program);
+        gl.uniform1i(this.uHoverLocation, -1);
+        gl.uniform1i(this.uSelectLocation, -1);
     }
 
     private build_vertices(gl: WebGL2RenderingContext) {
-        const positions: Float32Array = new Float32Array(this.topology.num_nodes() * 2);
+        const positions: Float32Array = new Float32Array(this.topology.num_nodes() * 3);
         for (let n = 0; n < this.topology.num_nodes(); n++) {
             const M: MetaNode = this.topology.node_weight(n);
-            const buffer_idx: number = n * 2;
+            const buffer_idx: number = n * 3;
 
             positions[buffer_idx] = M.position[0];
             positions[buffer_idx + 1] = M.position[1];
+            positions[buffer_idx + 2] = n;
         }
 
         gl.bindVertexArray(this.vao);
         gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
         gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
-        console.log("Vertices: ", positions);
+        // console.log("Vertices: ", positions);
     }
 
     private build_edges(gl: WebGL2RenderingContext) {
@@ -105,12 +116,18 @@ export class RenderGraph {
         return this;
     };
 
-    public is_dirty() {
+    public is_dirty(): boolean {
         return this.dirty_edges || this.dirty_nodes;
     }
 
     public expose_graph(): kGraph<MetaNode, string> {
         return this.topology;
+    }
+
+    public set_uniform_indices(gl: WebGL2RenderingContext, hover_index: node_idx_t, select_index: node_idx_t) {
+        gl.useProgram(this.program);
+        gl.uniform1i(this.uHoverLocation, hover_index);
+        gl.uniform1i(this.uSelectLocation, select_index);
     }
 
     /** Draws this RenderGraph */

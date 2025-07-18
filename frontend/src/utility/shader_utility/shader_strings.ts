@@ -30,15 +30,19 @@ export const texture_plane_fs_text = glsl`
 
 /** Vertex shader text for the Graph nodes on the canvas */
 export const render_graph_vs_text = glsl`
+    precision lowp float;
+
     attribute vec4 aVertexPosition;
+    varying float vNodeIndex;
 
     void main() {
-        float width = 600.0;
-        float height = 400.0;
+        const float width = 600.0;
+        const float height = 400.0;
 
         float nx = aVertexPosition.x / width * 2.0 - 1.0;
         float ny = (height - aVertexPosition.y) / height * 2.0 - 1.0;
 
+        vNodeIndex = aVertexPosition.z;
         gl_Position = vec4(nx, ny, 0.0, 1.0);
         gl_PointSize = 10.0;
     }
@@ -46,8 +50,23 @@ export const render_graph_vs_text = glsl`
 
 /** Fragment shader text for the Graph nodes on the canvas */
 export const render_graph_fs_text = glsl`
+    precision lowp float;
+
+    varying float vNodeIndex;
+    uniform int uHoverIndex;
+    uniform int uSelectedIndex;
+
     void main() {
-        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+        int node_index = int(vNodeIndex);
+        vec4 node_color = vec4(0.0, 0.0, 0.0, 1.0);
+
+        if (node_index == uSelectedIndex) {
+            node_color = vec4(1.0, 1.0, 1.0, 1.0);
+        } else if (node_index == uHoverIndex) {
+            node_color = vec4(0.5, 0.5, 0.5, 1.0);
+        }
+
+        gl_FragColor = node_color;
     }
 `;
 

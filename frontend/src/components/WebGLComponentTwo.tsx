@@ -179,7 +179,10 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
             const m_pos: number[] | Float32Array = mouse_pos.current.slice();
             const l_clicked: boolean = left_click.current;
             const hover_node: number | null = select(m_pos as vec2, rg, 8.0);
+
+            // UPDATES
             tracker.update_position([m_pos[0], m_pos[1]]);
+            rg.set_uniform_indices(gl, hover_node !== null ? hover_node : -1, node_picked !== null ? node_picked : -1);
 
             if (l_clicked) {
                 const lc_state: TClickEnum = get_lc_states({ node_picked, hover_node });
