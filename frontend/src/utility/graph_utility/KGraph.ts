@@ -315,7 +315,62 @@ export class kGraph<N,E> {
             return this.parent.outgoing(this.idx);
         }
 
+    };
+
+    /** Checks if node at `source` has an edge directed towards node `to` */
+    has_outgoing_to(source: node_idx_t, to: node_idx_t): boolean {
+        const outgoing_iter = this.outgoing(source)[Symbol.iterator]();
+        let result = outgoing_iter.next();
+
+        while (!result.done) {
+            if (result.value.node_idx === to) {
+                return true;
+            }
+
+            result = outgoing_iter.next();
+        }
+        
+        return false;
     }
+
+    /** Checks if node at `source` recieves an edge originating at node `from` */
+    has_incoming_from(source: node_idx_t, from: node_idx_t): boolean {
+        const incoming_iter = this.incoming(source)[Symbol.iterator]();
+        let result = incoming_iter.next();
+
+        while (!result.done) {
+            if (result.value.node_idx === from) {
+                return true;
+            }
+
+            result = incoming_iter.next();
+        }
+
+        return false;
+    }
+
+    /** "Wiff" because I can't use "with" as a parameter name. Checks if a directed edge
+     * exists between the `source` node and the `wiff` node. */
+    has_directed_wiff(source: node_idx_t, wiff: node_idx_t): boolean {
+        const outgoing_iter = this.outgoing(source)[Symbol.iterator]();
+        const incoming_iter = this.outgoing(source)[Symbol.iterator]();
+        let result_out = outgoing_iter.next();
+        let result_in = incoming_iter.next();
+
+        while (!result_in.done || !result_out.done) {
+            if (!result_in.done && result_in.value.node_idx === wiff) {
+                return true;
+            }
+
+            if (!result_out.done && result_out.value.node_idx === wiff) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // has_bi_directed_wiff(source: node_idx_t, wiff: node_idx_t) {}
     
     /** Returns the HeavyNode variant of some node `a`. */
     make_heavy(idx: node_idx_t): InstanceType<typeof this.HeavyNode> {
@@ -327,4 +382,167 @@ export class kGraph<N,E> {
         this.nodes = [];
         this.edges = [];
     }
+
+    /** Just returns itself */
+    prune(): kGraph<N,E> {
+        return this;
+    }
+
+    // into_view(): IdentityView<N,E> {} ?
+    // big question is how do views "compose" into each other?
+
+    /** Return whether  */
+    contains(n: node_idx_t): boolean {
+        return n < this.nodes.length;
+    }
 };
+
+// class VisitMap {
+//     private visit_list: Int32Array;
+
+//     constructor(G: kGraph<any,any>) {
+//         this.visit_list = new Int32Array(G.num_nodes()).fill(-1);
+//     }
+
+//     /** Mark a node as visited, set a path distance */
+//     public visit(n: node_idx_t, path_distance: number = 1) {
+//         this.visit_list[n] = path_distance;
+//     }
+
+//     /** Returns whether a node has been visited or not */
+//     public is_visited(n: node_idx_t): boolean {
+//         return this.visit_list[n] > -1;
+//     }
+
+//     public distance(n: node_idx_t): number {
+//         return this.visit_list[n];
+//     }
+// };
+
+// type BFSData = {
+//     node_idx: node_idx_t;
+//     path_distance: number;
+// };
+
+// type PathDistance<N> = {
+//     item: N;
+//     distance: number;
+// };
+
+
+// class BFSMachine {
+//     private queue: [node_idx_t, number][];
+//     private visited: VisitMap;
+
+//     constructor(G: kGraph<any,any>, start_node: node_idx_t) {
+//         this.queue = [[start_node, 0]];
+//         this.visited = new VisitMap(G);
+//     }
+
+//     /** Run a full BFS over graph G */
+//     public run(G: kGraph<any,any>): BFSMachine {
+//         while (this.queue.length > 0) {
+//             const node_at: [node_idx_t, number] = this.queue.shift()!;
+//             this.visited.visit(node_at[0], node_at[1]);
+
+//             for (let edge_data of G.outgoing(node_at[0])) {
+//                 if (!this.visited.is_visited(edge_data.node_idx)) {
+//                     this.queue.push([edge_data.node_idx, node_at[1] + 1]);
+//                 }
+//             }
+//         }
+
+//         return this;
+//     }
+
+//     /** Runs a single BFS iteration. If the visit list is empty `null` is returned. Otherwise
+//      * a BFSData is returned. */
+//     public next(G: kGraph<any,any>): BFSData | null {
+//         if (this.queue.length == 0) {
+//             return null;
+//         }
+
+//         const node_at: [node_idx_t, number] = this.queue.shift()!;
+//         const bfs_data: BFSData = { node_idx: node_at[0], path_distance: node_at[1] }; 
+//         this.visited.visit(node_at[0], node_at[1]);
+
+//         for (let edge_data of G.outgoing(node_at[0])) {
+//             if (this.visited.is_visited(edge_data.node_idx)) {
+//                 this.queue.push([edge_data.node_idx, node_at[1] + 1]);
+//             }
+//         }
+
+//         return bfs_data;
+//     }
+
+//     public get_visit_map(): VisitMap {
+//         return this.visited;
+//     }
+
+//     public empty(): boolean {
+//         return this.queue.length == 0;
+//     }
+// };
+
+// interface GraphView<N,E> {
+//     prune(): any;
+//     node_weight(): any;
+//     contains: boolean;
+// }
+
+// class IdentityView<N,E> {
+//     private inner: kGraph<N,E>;
+//     constructor(G: kGraph<N,E>) {
+//         this.inner = G;
+//     }
+// };
+
+// class NodeView<N,E> {
+//     private inner: kGraph<N,E>;
+//     private mappings: VisitMap;
+
+//     constructor(inner: kGraph<N,E>, centered: node_idx_t) {
+//         this.inner = inner;
+//         this.mappings = new BFSMachine(inner, centered).run(this.inner).get_visit_map();
+//     }
+
+//     /** Using `this.mappings` of this Graph View as a basis, construct a new `kGraph<Distance<N>,E>`, where its nodes
+//      * are a subset of `this.inner`. One thing worth considering though is whether this can all be evaluated lazily, as the
+//      * main thing here is producing the "mapping" */
+//     prune(): kGraph<PathDistance<N>,E> {
+//         const prune_graph: kGraph<PathDistance<N>,E> = new kGraph<PathDistance<N>,E>();
+//         const g2g_map: Map<node_idx_t,node_idx_t> = new Map<node_idx_t,node_idx_t>();
+
+//         // populate `prune_graph` with all the old nodes -> worst case O(N^2), avg case -> O(Nlog(N))
+//         for (let old_idx = 0; old_idx < this.inner.num_nodes(); old_idx++) {
+//             if (this.mappings.is_visited(old_idx)) {
+//                 const new_idx = prune_graph.add_node({ item: this.inner.node_weight(old_idx), distance: this.mappings.distance(old_idx) });
+//                 g2g_map.set(old_idx, new_idx);
+//             }
+//         }
+
+//         // with old_idx -> new_idx mappings established, rebuild edges only if both nodes in `prune_graph` only
+//         g2g_map.forEach((new_idx: node_idx_t, old_idx: node_idx_t) => {
+//             for (let edge_data of this.inner.outgoing(old_idx)) {
+//                 const target_idx: node_idx_t = edge_data.node_idx;
+//                 if (this.mappings.is_visited(target_idx)) {
+//                     prune_graph.add_edge(new_idx, g2g_map.get(target_idx)!, edge_data.edge_weight);
+//                 }
+//             }
+//         });
+
+//         return prune_graph;
+//     }
+
+//     // private build_mapping()
+
+//     node_weight(n: node_idx_t): PathDistance<N> {
+//         return { item: this.inner.node_weight(n), distance: this.mappings.distance(n) };
+//     }
+
+//     /** Return the path distance from the node the view is centered on to node `n` */
+//     distance(n: node_idx_t): number {
+//         return this.mappings.distance(n);
+//     }
+
+// };
