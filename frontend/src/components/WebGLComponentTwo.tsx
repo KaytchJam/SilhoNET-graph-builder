@@ -4,7 +4,7 @@ import { TexturePlane } from "../utility/TexturePlane";
 import { kGraph, type node_idx_t } from "../utility/graph_utility/KGraph";
 import { RenderGraph, metanode_build, type MetaNode } from "../utility/RenderGraph";
 import { ClickEnum, get_lc_states, type TClickEnum } from "../utility/UIStates";
-import { type GraphExporter, GraphMLExporter, DotExporter } from "../utility/ExportGraph";
+import { type GraphExporter, GraphMLExporter, DOTExporter } from "../utility/ExportGraph";
 import { MouseTracker } from "../utility/MouseTracker";
 
 // Convert "image" File types into HTMLImageElements
@@ -75,6 +75,18 @@ function select(pos: Readonly<vec2>, rg: RenderGraph, thresh: number = 5.0): nod
 //     left_click: boolean;
 // }
 
+function MetadataCard() {
+    const update_metadata = (n: node_idx_t) => { n };
+    const node_index: node_idx_t = 0;
+
+   return (
+        <div>
+            <h4> Node Metadata </h4>
+            <label>Name: <input type="text" value="" name="node-name-input" onChange={() => { update_metadata(node_index) }}/></label>
+        </div>
+   );
+}
+
 function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
     const canvas_ref = React.useRef<HTMLCanvasElement>(null);
     const para_ref = React.useRef<HTMLParagraphElement>(null);
@@ -83,7 +95,7 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
     const rgraph = React.useRef<RenderGraph>(null);
     const left_click = React.useRef<boolean>(false);
     const selected_node = React.useRef<node_idx_t>(null);
-    const [exportFormat, setExportFormat] = React.useState<"graphml" | "dot">("graphml");
+    const [exportFormat, setExportFormat] = React.useState<"graphml" | "gv">("graphml");
 
     // need a graph data structure internally
     const img_in: HTMLImageElement = bg.image_input;
@@ -99,8 +111,8 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
             case "graphml":
                 exporter = new GraphMLExporter();
                 break;
-            case "dot":
-                exporter = new DotExporter();
+            case "gv":
+                exporter = new DOTExporter();
                 break;
             default:
                 console.error("Unsupported format");
@@ -240,7 +252,7 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
                 <label>Export format: </label>
                 <select value={exportFormat} onChange={(e) => setExportFormat(e.target.value as any)}>
                     <option value="graphml">GraphML</option>
-                    <option value="dot">DOT</option>
+                    <option value="gv">DOT</option>
                 </select>
                 <button onClick={handleExport}>Export Graph</button>
             </div>

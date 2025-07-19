@@ -58,7 +58,7 @@ export class GraphMLExporter implements GraphExporter {
     }
 }
 
-export class DotExporter implements GraphExporter {
+export class DOTExporter implements GraphExporter {
 
     /** Take in a kGraph and serializes it into string form */
     serialize(G: kGraph<MetaNode, string>): string {
