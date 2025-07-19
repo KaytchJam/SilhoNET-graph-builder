@@ -75,7 +75,7 @@ export class DOTExporter implements GraphExporter {
 }
 
 export class JSONExporter implements GraphExporter {
-    serialize(G: kGraph<MetaNode, string>): string {
+    serialize(_: kGraph<MetaNode, string>): string {
         return "";
     }
 }
