@@ -147,7 +147,7 @@ export class RenderGraph {
 
         gl.useProgram(this.program);
         gl.bindVertexArray(this.vao);
-        gl.drawArrays(gl.POINTS, 0, this.topology.num_nodes());
         gl.drawElements(gl.LINES, this.topology.num_edges() * 2, gl.UNSIGNED_INT, 0);
+        gl.drawArrays(gl.POINTS, 0, this.topology.num_nodes());
     }
 }
