@@ -3,7 +3,7 @@ import type { MetaNode } from "./RenderGraph";
 
 export interface GraphExporter {
     serialize(G: kGraph<MetaNode,string>): string;
-    // deserialize(data: string): kGraph<MetaNode,string>;
+    // deserialize(data: string): kGraph<MetaNode,string>; not really needed might do this after everything else
 }
 
 export class GraphMLExporter implements GraphExporter {
@@ -59,8 +59,24 @@ export class GraphMLExporter implements GraphExporter {
 }
 
 export class DotExporter implements GraphExporter {
-    serialize(_: kGraph<MetaNode, string>): string {
-        return "Incomplete";
+
+    /** Take in a kGraph and serializes it into string form */
+    serialize(G: kGraph<MetaNode, string>): string {
+        const E: number = G.num_edges();
+
+        let data: string = "strict digraph {\n";
+        for (let e = 0; e < E; e++) {
+            const link = G.edge_nodes(e);
+            data += `\t${link.from_node} -> ${link.to_node}\n`;
+        }
+
+        return data + "}";
+    }
+}
+
+export class JSONExporter implements GraphExporter {
+    serialize(G: kGraph<MetaNode, string>): string {
+        return "";
     }
 }
 
