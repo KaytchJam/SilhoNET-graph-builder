@@ -4,7 +4,8 @@ import { TexturePlane } from "../utility/TexturePlane";
 import { kGraph, type node_idx_t } from "../utility/graph_utility/KGraph";
 import { RenderGraph, metanode_build, type MetaNode } from "../utility/RenderGraph";
 import { ClickEnum, get_lc_states, type TClickEnum } from "../utility/UIStates";
-import { type GraphExporter, GraphMLExporter, DotExporter } from "../utility/ExportGraph";
+import { type GraphExporter, GraphMLExporter, DOTExporter } from "../utility/ExportGraph";
+import { MouseTracker } from "../utility/MouseTracker";
 
 // Convert "image" File types into HTMLImageElements
 function file_to_image(file: File): Promise<HTMLImageElement> {
@@ -36,7 +37,7 @@ async function accept_file(f: FormData, setter: React.Dispatch<React.SetStateAct
     }
 }
 
-function draw_scene(gl: WebGL2RenderingContext, tp: TexturePlane, rg: RenderGraph) {
+function draw_scene(gl: WebGL2RenderingContext, tp: TexturePlane, rg: RenderGraph, tr: MouseTracker) {
     gl.clearColor(1.0, 1.0, 1.0, 1.0);
     gl.enable(gl.DEPTH_TEST);
     gl.clearDepth(1.0);
@@ -45,6 +46,7 @@ function draw_scene(gl: WebGL2RenderingContext, tp: TexturePlane, rg: RenderGrap
     
     tp.draw(gl);
     rg.draw(gl);
+    tr.draw(gl);
 }
 
 /** Find the nearest Graph node to the user's mouse within a given threshold. */
@@ -73,6 +75,18 @@ function select(pos: Readonly<vec2>, rg: RenderGraph, thresh: number = 5.0): nod
 //     left_click: boolean;
 // }
 
+function MetadataCard() {
+    const update_metadata = (n: node_idx_t) => { n };
+    const node_index: node_idx_t = 0;
+
+   return (
+        <div>
+            <h4> Node Metadata </h4>
+            <label>Name: <input type="text" value="" name="node-name-input" onChange={() => { update_metadata(node_index) }}/></label>
+        </div>
+   );
+}
+
 function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
     const canvas_ref = React.useRef<HTMLCanvasElement>(null);
     const para_ref = React.useRef<HTMLParagraphElement>(null);
@@ -81,7 +95,7 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
     const rgraph = React.useRef<RenderGraph>(null);
     const left_click = React.useRef<boolean>(false);
     const selected_node = React.useRef<node_idx_t>(null);
-    const [exportFormat, setExportFormat] = React.useState<"graphml" | "dot">("graphml");
+    const [exportFormat, setExportFormat] = React.useState<"graphml" | "gv">("graphml");
 
     // need a graph data structure internally
     const img_in: HTMLImageElement = bg.image_input;
@@ -97,8 +111,8 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
             case "graphml":
                 exporter = new GraphMLExporter();
                 break;
-            case "dot":
-                exporter = new DotExporter();
+            case "gv":
+                exporter = new DOTExporter();
                 break;
             default:
                 console.error("Unsupported format");
@@ -163,6 +177,7 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
         }
 
         const tplane: TexturePlane = new TexturePlane(canvas, gl, img_in);
+        const tracker: MouseTracker = new MouseTracker(gl);
         rgraph.current = new RenderGraph(gl);
 
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -176,6 +191,10 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
             const m_pos: number[] | Float32Array = mouse_pos.current.slice();
             const l_clicked: boolean = left_click.current;
             const hover_node: number | null = select(m_pos as vec2, rg, 8.0);
+
+            // UPDATES
+            tracker.update_position([m_pos[0], m_pos[1]]);
+            rg.set_uniform_indices(gl, hover_node !== null ? hover_node : -1, node_picked !== null ? node_picked : -1);
 
             if (l_clicked) {
                 const lc_state: TClickEnum = get_lc_states({ node_picked, hover_node });
@@ -191,10 +210,12 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
                         break;
 
                     case ClickEnum.LC_ADD_EDGE:
-                        rg.update((g: kGraph<MetaNode,string>): kGraph<MetaNode,string> => {
-                            g.add_edge(node_picked!, hover_node!, "");
-                            return g;
-                        });
+                        if (!rg.expose_graph().has_outgoing_to(node_picked!, hover_node!)) {
+                            rg.update((g: kGraph<MetaNode,string>): kGraph<MetaNode,string> => {
+                                g.add_edge(node_picked!, hover_node!, "");
+                                return g;
+                            });
+                        }
                         selected_node.current = null;
                         break;
 
@@ -215,7 +236,7 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
 
             para!.textContent = `Selected node: ${ node_picked === null ? "NONE" : node_picked }`;
 
-            draw_scene(gl, tplane, rg);
+            draw_scene(gl, tplane, rg, tracker);
             requestAnimationFrame(render_loop);
         }
 
@@ -231,7 +252,7 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
                 <label>Export format: </label>
                 <select value={exportFormat} onChange={(e) => setExportFormat(e.target.value as any)}>
                     <option value="graphml">GraphML</option>
-                    <option value="dot">DOT</option>
+                    <option value="gv">DOT</option>
                 </select>
                 <button onClick={handleExport}>Export Graph</button>
             </div>
@@ -253,7 +274,7 @@ export default function WebGLComponentTwo(): React.JSX.Element {
 
             <form action={(f: FormData) => accept_file(f, set_image_in)}>
                 <input type="file" accept="image/jpeg" name="image-input"required/>
-                <input type="submit" name="image-submit"/>
+                <button type="submit" name="image-submit">Create Canvas</button>
             </form>
             { image_in && <WebGLCanvas image_input={image_in}/> }
         </div>
