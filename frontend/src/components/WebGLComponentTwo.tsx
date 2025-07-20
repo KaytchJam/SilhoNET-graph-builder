@@ -101,7 +101,7 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
     const img_in: HTMLImageElement = bg.image_input;
 
     const handleExport = () => {
-        const rg = rgraph.current;
+        const rg: RenderGraph | null = rgraph.current;
         if (!rg) return;
 
         const graph: kGraph<MetaNode,string> = rg.expose_graph();
@@ -119,11 +119,11 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
                 return;
         }
 
-        const output = exporter.serialize(graph); // assumes this returns a string
-        const blob = new Blob([output], { type: "text/plain;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
+        const output: string = exporter.serialize(graph); // assumes this returns a string
+        const blob: Blob = new Blob([output], { type: "text/plain;charset=utf-8" });
+        const url: string = URL.createObjectURL(blob);
 
-        const a = document.createElement("a");
+        const a: HTMLAnchorElement = document.createElement("a");
         a.href = url;
         a.download = `graph_export.${exportFormat}`;
         a.click();
