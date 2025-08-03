@@ -90,27 +90,79 @@ type MetaCardInput = {
     metadata_map: Map<string,string[]>
 }
 
-/** React componenet for rendering 'node' cards or 'key' cards
+/** Convert all Metadata Map attributes into a list to be displayed */
+function collect_attributes(meta_map: Map<string, string[]>) {
+    const attr_list: React.JSX.Element[] = [];
+    let idx: number = 0;
+    for (let key of meta_map.keys()) {
+        attr_list.push((
+            <p key={idx}>{key} Attribute</p>
+        ));
+        idx += 1;
+    }
+
+    return attr_list;
+}
+
+/** Add an attribute to the Metadata Map. */
+function add_attribute(f: FormData, meta_map: Map<String,String[]>, U: React.Dispatch<React.SetStateAction<number>>): void {
+    const item_text: string | undefined = f.get("new-attr")?.toString();
+    if (item_text !== undefined) {
+        const item_text_trimmed: string = item_text.trim();
+        console.log(`New Attribute: ${item_text_trimmed}`);
+
+        if (item_text_trimmed.length > 0 && !meta_map.has(item_text_trimmed)) {
+            meta_map.set(item_text_trimmed, Array(meta_map.values().next().value?.length).fill(""));
+            U(meta_map.size); // stage a re-render
+            console.log(meta_map);
+        }
+    }
+}
+
+function AttributeCard(meta_map_wrapper: { meta_map: Map<string,string[]> }) {
+    const [_, update_num_attrs] = React.useState(meta_map_wrapper.meta_map.size);
+
+    return (
+        <div className="meta-card-div">
+            <h4>Attribute Data</h4>
+            <div className="node-attributes"> 
+                { collect_attributes(meta_map_wrapper.meta_map) }
+            </div>
+            <form action={(f: FormData)=>add_attribute(f, meta_map_wrapper.meta_map, update_num_attrs)}>
+                <input type="text" maxLength={20} name="new-attr" className="new-attr-input" required></input>
+                <button type="submit">Add Attribute</button>
+            </form>
+        </div>
+    );
+}
+
+function NodeCard(meta_in: MetaCardInput) {
+    return (
+        <div className="node-card-div">
+            <h4>Node {meta_in.selected_node} Data</h4>
+            <p>Attribute <span> Value </span></p>
+            {/* <label>Name: <input type="text" onChange={()=>{}}/></label> */}
+        </div>
+    );
+}
+
+/** React component for rendering 'node' cards or 'key' cards
  *
  * 
  *  -> Key Cards: Add or remove node attributes
  *  -> Node cards: Edit a selected node's particular attributes
  */
 function MetadataCard(meta_in: MetaCardInput) {
-    const update_metadata = (n: node_idx_t) => { n };
-    const node_index: node_idx_t = meta_in.selected_node!;
+    const [node_at, update_node_at] = React.useState<number | null>(meta_in.selected_node);
 
    return (
-        <div className="meta-card-div">
-            <h4>Node Metadata</h4>
-            <label>Name: <input type="text" value="" name="node-name-input" onChange={() => { update_metadata(node_index) }}/></label>
-        </div>
+        <AttributeCard meta_map={meta_in.metadata_map}/>
    );
 }
 
 function init_metadata_map() {
     const metamap = new Map<string,string[]>();
-    metamap.set("name", []);
+    metamap.set("Name", []);
     // metamap.set("")
     return metamap;
 }
