@@ -353,7 +353,7 @@ export class kGraph<N,E> {
     /** Checks if node at `source` recieves an edge originating at node `from` */
     has_incoming_from(source: node_idx_t, from: node_idx_t): boolean {
         const incoming_iter = this.incoming(source)[Symbol.iterator]();
-        let result = incoming_iter.next();
+        let result: IteratorResult<EdgeData<E>, any> = incoming_iter.next();
 
         while (!result.done) {
             if (result.value.node_idx === from) {
