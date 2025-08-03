@@ -17,6 +17,7 @@ export class GraphMLExporter implements MetaGraphExporter {
         return `\t<key id="${id}" for="${gtarget}" attr.name="${attr_name}" attr.type="${attr_type}"/>\n`;
     }
 
+    /** Add XML key-nodes based on the keys in `metamap` */
     private static add_node_keys(metamap: Map<string,string[]>) {
         let keyset: string = "";
         let enumerate: number = 0;
@@ -55,6 +56,7 @@ export class GraphMLExporter implements MetaGraphExporter {
         data += GraphMLExporter.add_key("d1", "edge", "e-text", "string");
         data += GraphMLExporter.add_graph("G", "directed");
 
+        // O(N * A) where N is the number of graph nodes & A is the number of attributes
         for (let i = 0; i < N; i++) {
             for (let [_, list] of metamap) {
                 data += GraphMLExporter.add_node(i, list);
@@ -71,7 +73,6 @@ export class GraphMLExporter implements MetaGraphExporter {
 }
 
 export class DOTExporter implements MetaGraphExporter {
-
     /** Take in a kGraph and serializes it into string form */
     serialize(G: kGraph<DrawNode, string>, _: Map<string,string[]>): string {
         const E: number = G.num_edges();
