@@ -209,6 +209,7 @@ function append_to_all(metadata_map: Map<string,string[]>) {
 function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
     const canvas_ref = React.useRef<HTMLCanvasElement>(null);
     const para_ref = React.useRef<HTMLParagraphElement>(null);
+    const component_ref = React.useRef<HTMLDivElement>(null);
 
     const mouse_pos = React.useRef<vec2>([0, 0]);
     const rgraph = React.useRef<RenderGraph>(null);
@@ -254,12 +255,12 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
     
     React.useEffect(() => {
         const canvas: HTMLCanvasElement | null = canvas_ref.current;
-
+        
         if (canvas == null) {
             console.error("Couldn't find canvas reference");
             return;
         }
-
+        
         canvas.addEventListener("mousemove", (event: MouseEvent) => {
             const bb: DOMRect = canvas_ref.current?.getBoundingClientRect()!;
             mouse_pos.current = [
@@ -267,7 +268,7 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
                 event.clientY - bb.top
             ];
         });
-
+        
         canvas.addEventListener("mouseup", (ev: MouseEvent) => {
             switch (ev.button) {
                 case 0: // LEFT CLICK
@@ -276,8 +277,26 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
                 case 1: // RIGHT CLICK
                     console.log("Right click happened over canvas");
                     break;
-                default: // IDK
+                    default: // IDK
                     break;
+                }
+            });
+            
+        const div: HTMLDivElement | null = component_ref.current;
+        
+        if (div == null) {
+            console.error("Couldn't find div reference");
+            return;
+        }
+
+        div.addEventListener("keyup", (ev: KeyboardEvent) => {
+            console.log("KEY CLICKED");
+            console.log(ev.code);
+            console.log(ev.key);
+
+            if (ev.code == "Escape") {
+                selected_node.current = null;
+                set_snode_mirror(null);
             }
         });
     }, []);
@@ -373,7 +392,7 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
     }, [img_in]);
 
     return (
-        <div>
+        <div ref={component_ref} tabIndex={0}>
             <p>Another canvas, with a texture now.</p>
             <canvas ref={canvas_ref} height="400" width="600"></canvas>
             <p ref={para_ref}></p>
