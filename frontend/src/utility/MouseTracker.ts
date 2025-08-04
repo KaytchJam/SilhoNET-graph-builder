@@ -52,7 +52,7 @@ export class MouseTracker {
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.position), gl.STATIC_DRAW);
     }
 
-    public draw(gl: WebGL2RenderingContext) {
+    public draw(gl: WebGL2RenderingContext): void {
         if (this.dirty) {
             this.build_vertices(gl);
         }

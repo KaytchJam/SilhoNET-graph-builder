@@ -102,15 +102,32 @@ export class kGraph<N,E> {
         weights.forEach((w) => this.add_node(w));
         return { first_node: ret_node_idx, number_of_nodes: weights.length };
     }
+    
+    /** Construct an "empty graph" i.e. a graph with no edges from an array  */
+    public static nodes_from<N,E>(weights: N[]): kGraph<N,E> {
+        const linkless_graph: kGraph<N,E> = new kGraph<N,E>();
+        linkless_graph.add_nodes(...weights);
+        return linkless_graph;
+    }
 
     /** Returns the weight of node `a` provided that it's a valid index */
     public node_weight(a: node_idx_t): N {
         return this.nodes[a].weight;
     }
 
+    /** Applies function `F` to node n's weight and sets the result as node n's
+     * new weight. */
+    public node_map_weight(n: node_idx_t, F: (weight: N) => N): void {
+        this.nodes[n].weight = F(this.nodes[n].weight);
+    }
+
     /** Returns the weight of edge `e` provided that it's a valid index */
     public edge_weight(e: edge_idx_t): E {
         return this.edges[e].weight;
+    }
+
+    public edge_map_weight(e: edge_idx_t, F: (weight: E) => E): void {
+        this.edges[e].weight = F(this.edges[e].weight);
     }
 
     /** Returns the edge link of edge 'e' provided that it's a valid index */
@@ -336,7 +353,7 @@ export class kGraph<N,E> {
     /** Checks if node at `source` recieves an edge originating at node `from` */
     has_incoming_from(source: node_idx_t, from: node_idx_t): boolean {
         const incoming_iter = this.incoming(source)[Symbol.iterator]();
-        let result = incoming_iter.next();
+        let result: IteratorResult<EdgeData<E>, any> = incoming_iter.next();
 
         while (!result.done) {
             if (result.value.node_idx === from) {

@@ -10,20 +10,18 @@ type GraphSize = { num_nodes: number, num_edges: number };
 type GraphMap<N,E> = (G: kGraph<N,E>) => kGraph<N,E>;
 
 /** Tracks node position, name, and other relevant data (tbd) */
-export type MetaNode = {
+export type DrawNode = {
     position: vec2,
-    name: string
 }
 
-export function metanode_build(x: number, y: number, name: string): MetaNode {
+export function drawnode_build(x: number, y: number): DrawNode {
     return {
         position: [x, y],
-        name: name
     };
 }
 
 export class RenderGraph {
-    private topology: kGraph<MetaNode,string>;
+    private topology: kGraph<DrawNode,string>;
     private program: WebGLProgram;
     
     private vao: WebGLVertexArrayObject;
@@ -32,12 +30,13 @@ export class RenderGraph {
 
     private uHoverLocation: WebGLUniformLocation;
     private uSelectLocation: WebGLUniformLocation;
+    private uIsVertexLocation: WebGLUniformLocation;
 
     private dirty_nodes: boolean;
     private dirty_edges: boolean;
 
     constructor(gl: WebGL2RenderingContext) {
-        this.topology = new kGraph<MetaNode,string>();
+        this.topology = new kGraph<DrawNode,string>();
         this.dirty_nodes = false;
         this.dirty_edges = false;
 
@@ -65,6 +64,7 @@ export class RenderGraph {
 
         this.uHoverLocation = gl.getUniformLocation(this.program, "uHoverIndex")!;
         this.uSelectLocation = gl.getUniformLocation(this.program, "uSelectedIndex")!;
+        this.uIsVertexLocation = gl.getUniformLocation(this.program, "uIsVertex")!;
 
         gl.useProgram(this.program);
         gl.uniform1i(this.uHoverLocation, -1);
@@ -74,7 +74,7 @@ export class RenderGraph {
     private build_vertices(gl: WebGL2RenderingContext) {
         const positions: Float32Array = new Float32Array(this.topology.num_nodes() * 3);
         for (let n = 0; n < this.topology.num_nodes(); n++) {
-            const M: MetaNode = this.topology.node_weight(n);
+            const M: DrawNode = this.topology.node_weight(n);
             const buffer_idx: number = n * 3;
 
             positions[buffer_idx] = M.position[0];
@@ -103,7 +103,7 @@ export class RenderGraph {
     }
 
     /** Exposes the internal graph of the RenderGraph and updates the dirty field if a change in the number of edges or nodes is observed*/
-    public update(M: GraphMap<MetaNode,string>): RenderGraph {
+    public update(M: GraphMap<DrawNode,string>): RenderGraph {
         const prev_size: GraphSize = { num_nodes: this.topology.num_nodes(), num_edges: this.topology.num_edges() };
         this.topology = M(this.topology);
         this.dirty_nodes = prev_size.num_nodes !== this.topology.num_nodes();
@@ -111,7 +111,7 @@ export class RenderGraph {
         return this;
     }
 
-    public peek(M: (g: Readonly<kGraph<MetaNode,string>>) => void): RenderGraph {
+    public peek(M: (g: Readonly<kGraph<DrawNode,string>>) => void): RenderGraph {
         M(this.topology);
         return this;
     };
@@ -120,7 +120,7 @@ export class RenderGraph {
         return this.dirty_edges || this.dirty_nodes;
     }
 
-    public expose_graph(): kGraph<MetaNode, string> {
+    public expose_graph(): kGraph<DrawNode, string> {
         return this.topology;
     }
 
@@ -147,7 +147,11 @@ export class RenderGraph {
 
         gl.useProgram(this.program);
         gl.bindVertexArray(this.vao);
+
+        gl.uniform1i(this.uIsVertexLocation, 1);
         gl.drawElements(gl.LINES, this.topology.num_edges() * 2, gl.UNSIGNED_INT, 0);
+        
+        gl.uniform1i(this.uIsVertexLocation, 0);
         gl.drawArrays(gl.POINTS, 0, this.topology.num_nodes());
     }
 }
