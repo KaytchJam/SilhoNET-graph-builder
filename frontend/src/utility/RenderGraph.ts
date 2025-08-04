@@ -30,6 +30,7 @@ export class RenderGraph {
 
     private uHoverLocation: WebGLUniformLocation;
     private uSelectLocation: WebGLUniformLocation;
+    private uIsVertexLocation: WebGLUniformLocation;
 
     private dirty_nodes: boolean;
     private dirty_edges: boolean;
@@ -63,6 +64,7 @@ export class RenderGraph {
 
         this.uHoverLocation = gl.getUniformLocation(this.program, "uHoverIndex")!;
         this.uSelectLocation = gl.getUniformLocation(this.program, "uSelectedIndex")!;
+        this.uIsVertexLocation = gl.getUniformLocation(this.program, "uIsVertex")!;
 
         gl.useProgram(this.program);
         gl.uniform1i(this.uHoverLocation, -1);
@@ -145,7 +147,11 @@ export class RenderGraph {
 
         gl.useProgram(this.program);
         gl.bindVertexArray(this.vao);
+
+        gl.uniform1i(this.uIsVertexLocation, 1);
         gl.drawElements(gl.LINES, this.topology.num_edges() * 2, gl.UNSIGNED_INT, 0);
+        
+        gl.uniform1i(this.uIsVertexLocation, 0);
         gl.drawArrays(gl.POINTS, 0, this.topology.num_nodes());
     }
 }
