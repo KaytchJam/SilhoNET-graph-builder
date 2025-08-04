@@ -290,10 +290,6 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
         }
 
         div.addEventListener("keyup", (ev: KeyboardEvent) => {
-            console.log("KEY CLICKED");
-            console.log(ev.code);
-            console.log(ev.key);
-
             if (ev.code == "Escape") {
                 selected_node.current = null;
                 set_snode_mirror(null);
