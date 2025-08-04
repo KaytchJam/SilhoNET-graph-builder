@@ -55,15 +55,18 @@ export const render_graph_fs_text = glsl`
     varying float vNodeIndex;
     uniform int uHoverIndex;
     uniform int uSelectedIndex;
+    uniform int uIsVertex;
 
     void main() {
         int node_index = int(vNodeIndex);
         vec4 node_color = vec4(0.0, 0.0, 0.0, 1.0);
 
-        if (node_index == uSelectedIndex) {
-            node_color = vec4(1.0, 1.0, 1.0, 1.0);
-        } else if (node_index == uHoverIndex) {
-            node_color = vec4(0.5, 0.5, 0.5, 1.0);
+        if (bool(uIsVertex)) {
+            if (node_index == uSelectedIndex) {
+                node_color = vec4(1.0, 1.0, 1.0, 1.0);
+            } else if (node_index == uHoverIndex) {
+                node_color = vec4(0.5, 0.5, 0.5, 1.0);
+            }
         }
 
         gl_FragColor = node_color;
