@@ -86,12 +86,12 @@ function select(pos: Readonly<vec2>, rg: RenderGraph, thresh: number = 5.0): nod
 // -> node_weight_update(n: node_idx_t, weight: N) where n is the node we want to update and weight is the new weight
 
 type MetaCardInput = {
-    selected_node: number | null;
+    selected_node: number | null,
     metadata_map: Map<string,string[]>
 }
 
 /** Convert all Metadata Map attributes into a list to be displayed */
-function collect_attributes(meta_map: Map<string, string[]>) {
+function collect_attributes(meta_map: Map<string, string[]>): React.JSX.Element[] {
     const attr_list: React.JSX.Element[] = [];
     let idx: number = 0;
     for (let key of meta_map.keys()) {
@@ -105,7 +105,7 @@ function collect_attributes(meta_map: Map<string, string[]>) {
 }
 
 /** Add an attribute to the Metadata Map. */
-function add_attribute(f: FormData, meta_map: Map<String,String[]>, U: React.Dispatch<React.SetStateAction<number>>): void {
+function add_attribute(f: FormData, meta_map: Map<string,string[]>, U: React.Dispatch<React.SetStateAction<number>>): void {
     const item_text: string | undefined = f.get("new-attr")?.toString();
     if (item_text !== undefined) {
         const item_text_trimmed: string = item_text.trim();
@@ -117,6 +117,27 @@ function add_attribute(f: FormData, meta_map: Map<String,String[]>, U: React.Dis
             console.log(meta_map);
         }
     }
+}
+
+function collect_attributes_as_input(
+    meta_map: Map<string,string[]>,
+    selected_node: number,
+    update_func: (c: React.ChangeEvent<HTMLInputElement>, attr: string) => void
+): React.JSX.Element[] {
+    const attr_list: React.JSX.Element[] = [];
+    let idx: number = 0;
+    for (let key of meta_map.keys()) {
+        attr_list.push((
+            <label key={idx} className="node-attr-label">{key}: 
+                <input type="text" value={meta_map.get(key)![selected_node]} 
+                    className="node-attr-input" maxLength={20} onChange={(event) => update_func(event, key)}
+                />
+            </label>
+        ));
+        idx += 1;
+    }
+
+    return attr_list;
 }
 
 function AttributeCard(meta_map_wrapper: { meta_map: Map<string,string[]> }) {
@@ -137,11 +158,21 @@ function AttributeCard(meta_map_wrapper: { meta_map: Map<string,string[]> }) {
 }
 
 function NodeCard(meta_in: MetaCardInput) {
+    const [counter, update_counter] = React.useState(0);
+
+    const update_func = (r: React.ChangeEvent<HTMLInputElement>, attr: string) => {
+        const val = r.target.value;
+        console.log(val);
+        const attr_list: string[] = meta_in.metadata_map.get(attr)!;
+        attr_list[meta_in.selected_node!] = val;
+        update_counter(counter + 1);
+    };
+
     return (
         <div className="node-card-div">
-            <h4>Node {meta_in.selected_node} Data</h4>
+            <h4>Node {meta_in.selected_node!} Data</h4>
             <p>Attribute <span> Value </span></p>
-            {/* <label>Name: <input type="text" onChange={()=>{}}/></label> */}
+            { collect_attributes_as_input(meta_in.metadata_map, meta_in.selected_node!, update_func) }
         </div>
     );
 }
@@ -153,10 +184,13 @@ function NodeCard(meta_in: MetaCardInput) {
  *  -> Node cards: Edit a selected node's particular attributes
  */
 function MetadataCard(meta_in: MetaCardInput) {
-    const [node_at, update_node_at] = React.useState<number | null>(meta_in.selected_node);
-
    return (
-        <AttributeCard meta_map={meta_in.metadata_map}/>
+        <div>
+            { meta_in.selected_node == null
+                ? <AttributeCard meta_map={meta_in.metadata_map}/> 
+                : <NodeCard metadata_map={meta_in.metadata_map} selected_node={meta_in.selected_node}/>
+            }
+        </div>
    );
 }
 
@@ -180,7 +214,8 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
     const rgraph = React.useRef<RenderGraph>(null);
     const mmap = React.useRef(init_metadata_map());
     const left_click = React.useRef<boolean>(false);
-    const selected_node = React.useRef<node_idx_t>(null);
+    const selected_node = React.useRef<node_idx_t | null>(null);
+    const [_, set_snode_mirror] = React.useState<node_idx_t | null>(null);
     const [exportFormat, setExportFormat] = React.useState<"graphml" | "gv">("graphml");
 
     // need a graph data structure internally
@@ -297,6 +332,7 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
 
                         mmap.current = append_to_all(mm);
                         selected_node.current = null;
+                        set_snode_mirror(null);
                         break;
 
                     case ClickEnum.LC_ADD_EDGE:
@@ -307,14 +343,17 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
                             });
                         }
                         selected_node.current = null;
+                        set_snode_mirror(null);
                         break;
 
                     case ClickEnum.LC_SELECT_NODE:
                         selected_node.current = hover_node;
+                        set_snode_mirror(hover_node);
                         break;
 
                     case ClickEnum.LC_DESELECT_NODE:
                         selected_node.current = null;
+                        set_snode_mirror(null);
                         break;
 
                     default:
