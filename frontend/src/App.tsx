@@ -45,7 +45,7 @@ function App() {
         </div>
 
         <div className="round-ctner">
-          <h2 className="app-h2">WebGL Component 2</h2>
+          <h2 className="app-h2">Graph Building Tool</h2>
           <WebGLComponentTwo/>
         </div>
       </div>
