@@ -6,6 +6,7 @@ export interface MetaGraphExporter {
     // deserialize(data: string): kGraph<MetaNode,string>; not really needed might do this after everything else
 }
 
+/** GraphML format  */
 export class GraphMLExporter implements MetaGraphExporter {
     /** Add an XML header for the GraphML format */
     private add_header() {
@@ -34,9 +35,21 @@ export class GraphMLExporter implements MetaGraphExporter {
         return `\t<graph id="${id}" edgedefault="${edgedefault}">\n`;
     }
 
+    private static add_node_data(data_index: number, node_idx: number, metalist: string[]) {
+        return `\t\t\t<data key="d${data_index}">${metalist[node_idx]}</data>\n`;
+    }
+
     /** Build an XML node-node */
-    private static add_node(node_idx: number, metalist: string[]): string {
-        return `\t\t<node id="n${node_idx}">\n\t\t\t<data key="d0">${metalist[node_idx]}</data>\n\t\t</node>\n`;
+    private static add_node(node_idx: number, metamap: Map<string,string[]>): string {
+        let data_buff: string = "";
+        let data_index = 0;
+
+        for (let [_, list] of metamap) {
+            data_buff += this.add_node_data(data_index, node_idx, list);
+            data_index += 1;
+        }
+
+        return `\t\t<node id="n${node_idx}">\n${data_buff}\t\t</node>\n`;
     }
     
     /** Build an XML edge-node */
@@ -58,9 +71,7 @@ export class GraphMLExporter implements MetaGraphExporter {
 
         // O(N * A) where N is the number of graph nodes & A is the number of attributes
         for (let i = 0; i < N; i++) {
-            for (let [_, list] of metamap) {
-                data += GraphMLExporter.add_node(i, list);
-            }
+            data += GraphMLExporter.add_node(i, metamap);
         }
         
         for (let e = 0; e < E; e++) {
@@ -72,6 +83,7 @@ export class GraphMLExporter implements MetaGraphExporter {
     }
 }
 
+/** DOT format */
 export class DOTExporter implements MetaGraphExporter {
     /** Take in a kGraph and serializes it into string form */
     serialize(G: kGraph<DrawNode, string>, _: Map<string,string[]>): string {
@@ -87,6 +99,7 @@ export class DOTExporter implements MetaGraphExporter {
     }
 }
 
+/** JSON format */
 export class JSONExporter implements MetaGraphExporter {
     serialize(g: kGraph<DrawNode, string>, _: Map<string,string[]>): string {
         return "";
