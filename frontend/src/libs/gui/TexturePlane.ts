@@ -1,5 +1,5 @@
-import { init_shader_program } from "./shader_utility/shader_funcs";
-import { texture_plane_vs_text, texture_plane_fs_text } from "./shader_utility/shader_strings";
+import { init_shader_program } from "../../utils/webgl/shader_funcs";
+import { texture_plane_vs_text, texture_plane_fs_text } from "../../shaders/shader_strings";
         
 export class TexturePlane {
     length: number;

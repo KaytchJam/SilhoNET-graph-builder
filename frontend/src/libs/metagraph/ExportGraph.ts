@@ -1,4 +1,4 @@
-import { kGraph } from "./graph_utility/KGraph";
+import { kGraph } from "./KGraph";
 import type { DrawNode } from "./RenderGraph";
 
 export interface MetaGraphExporter {

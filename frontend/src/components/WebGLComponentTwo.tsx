@@ -1,11 +1,11 @@
 import React from "react"
 import { vec2 } from "gl-matrix";
-import { TexturePlane } from "../utility/TexturePlane";
-import { kGraph, type node_idx_t } from "../utility/graph_utility/KGraph";
-import { RenderGraph, drawnode_build, type DrawNode } from "../utility/RenderGraph";
-import { ClickEnum, get_lc_states, type TClickEnum } from "../utility/UIStates";
-import { type MetaGraphExporter, GraphMLExporter, DOTExporter } from "../utility/ExportGraph";
-import { MouseTracker } from "../utility/MouseTracker";
+import { TexturePlane } from "../libs/gui/TexturePlane";
+import { kGraph, type node_idx_t } from "../libs/metagraph/KGraph";
+import { RenderGraph, make_drawnode, type DrawNode } from "../libs/metagraph/RenderGraph";
+import { ClickEnum, get_lc_states, type TClickEnum } from "../libs/engine/UIStates";
+import { type MetaGraphExporter, GraphMLExporter, DOTExporter } from "../libs/metagraph/ExportGraph";
+import { MouseTracker } from "../libs/gui/MouseTracker";
 
 // Convert "image" File types into HTMLImageElements
 function file_to_image(file: File): Promise<HTMLImageElement> {
@@ -340,7 +340,7 @@ function WebGLCanvas(bg: { image_input: HTMLImageElement }): React.JSX.Element {
                 switch (lc_state) {
                     case ClickEnum.LC_ADD_NODE:
                         rg.update((g: kGraph<DrawNode, string>): kGraph<DrawNode,string> => {
-                            const m_new: DrawNode = drawnode_build(m_pos[0], m_pos[1]);
+                            const m_new: DrawNode = make_drawnode(m_pos[0], m_pos[1]);
                             g.add_node(m_new);
                             return g;
                         });

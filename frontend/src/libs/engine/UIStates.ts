@@ -1,4 +1,4 @@
-import type { EnumLike } from "./graph_utility/EnumLike";
+import type { EnumLike } from "../../utils/enums/EnumLike";
 
 export const ClickEnum = { 
     NONE: 0,
@@ -32,4 +32,3 @@ export function get_lc_states(selection_context: { node_picked: number | null, h
 
     return out;
 }
-

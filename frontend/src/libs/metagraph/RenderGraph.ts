@@ -1,7 +1,12 @@
-import { kGraph, type node_idx_t } from "./graph_utility/KGraph";
+// Math related
 import type { vec2 } from "gl-matrix";
-import { init_shader_program } from "./shader_utility/shader_funcs";
-import { render_graph_vs_text, render_graph_fs_text } from "./shader_utility/shader_strings";
+
+// Graph related
+import { kGraph, type node_idx_t } from "./KGraph";
+
+// Rendering related
+import { init_shader_program } from "../../utils/webgl/shader_funcs";
+import { render_graph_vs_text, render_graph_fs_text } from "../../shaders/shader_strings";
 
 /** Quick coupling of number of nodes & number of edges together */
 type GraphSize = { num_nodes: number, num_edges: number };
@@ -14,7 +19,8 @@ export type DrawNode = {
     position: vec2,
 }
 
-export function drawnode_build(x: number, y: number): DrawNode {
+/** Constructs a DrawNode */
+export function make_drawnode(x: number, y: number): DrawNode {
     return {
         position: [x, y],
     };
