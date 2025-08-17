@@ -22,7 +22,6 @@ class MetaGraph<N,E> implements IndexedGraph<N,E> {
             attr, 
             Array(this.attribute_map.values().next().value?.length).fill("")
         );
-
         return this;
     }
 
@@ -117,6 +116,15 @@ class MetaGraph<N,E> implements IndexedGraph<N,E> {
         iter(): Iterator<[string,string]> {
             return this[Symbol.iterator]();
         }
+
+        /** for each */
+        for_each(F: (pair: [string,string], index: number | undefined) => void): void {
+            let idx: number = 0;
+            for (let p of this) {
+                F(p, idx);
+                idx += 1;
+            }
+        }
     }
 
     /** Creates an iterable construct: `NodeValues` that lets you iterate through all
@@ -133,12 +141,13 @@ class MetaGraph<N,E> implements IndexedGraph<N,E> {
     }
 }
 
+/** Foo */
 function foo(): void {
     let mg = new MetaGraph<void,void>();
     
     const a = mg.add_node();
-    const b = mg.add_node();
-    const c = mg.add_node();
+    mg.add_node();
+    mg.add_node();
     
     mg.add_attr("Name");
     mg.add_attr("Race");
@@ -151,7 +160,9 @@ function foo(): void {
     mg.set_node_value(a, "Credit Score", "900");
     
     
-    for (let pair of mg.iter_node_values(0)) {
+    for (let pair of mg.iter_node_values(a)) {
         console.log(pair);
     } 
 }
+
+foo();
