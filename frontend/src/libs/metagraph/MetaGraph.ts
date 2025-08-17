@@ -79,4 +79,79 @@ class MetaGraph<N,E> implements IndexedGraph<N,E> {
     public num_nodes(): number {
         return this.topology.num_nodes();
     }
+
+    public num_edges(): number {
+        return this.topology.num_edges();
+    }
+
+    public iter_keys(): MapIterator<string> {
+        return this.attribute_map.keys();
+    }
+
+    NodeValues = class NodeValues implements Iterable<[string,string]> {
+        readonly node_index: node_idx_t;
+        readonly attribute_map: Map<string,string[]>;
+
+        constructor(parent: MetaGraph<any,any>, node_index: node_idx_t) {
+            this.attribute_map = parent.attribute_map;
+            this.node_index = node_index;
+        }
+
+        /** Iterates through all values associated with `node_index` in
+         * the attribute map of the parent `MetaGraph<any,any>`*/
+        [Symbol.iterator](): Iterator<[string, string]> {
+            const key_iterator = this.attribute_map[Symbol.iterator]();
+            return {
+                next: () => {
+                    const result: IteratorResult<[string,string[]]> = key_iterator.next();
+                    if (result.done === true) {
+                        return { done: true, value: "" };
+                    }
+
+                    return { done: false, value: [result.value[0], result.value[1][this.node_index]] };
+                }
+            };
+        }
+
+        /** Shorthand for `[Symbol.iterator]()` */
+        iter(): Iterator<[string,string]> {
+            return this[Symbol.iterator]();
+        }
+    }
+
+    /** Creates an iterable construct: `NodeValues` that lets you iterate through all
+     * attribute values associated with the Node at `node_index`. */
+    public iter_node_values(node_index: node_idx_t): InstanceType<typeof this.NodeValues> {
+        return new this.NodeValues(this, node_index);
+    }
+
+    /** Set the value of a node along a given attribute `attr` */
+    public set_node_value(node_index: node_idx_t, attr: string, value: string): MetaGraph<N,E> {
+        const attr_values: string[] = this.get_attr_values(attr)!;
+        attr_values[node_index] = value;
+        return this;
+    }
+}
+
+function foo(): void {
+    let mg = new MetaGraph<void,void>();
+    
+    const a = mg.add_node();
+    const b = mg.add_node();
+    const c = mg.add_node();
+    
+    mg.add_attr("Name");
+    mg.add_attr("Race");
+    mg.add_attr("Height");
+    mg.add_attr("Credit Score");
+    
+    mg.set_node_value(a, "Name", "Kelso");
+    mg.set_node_value(a, "Race", "White");
+    mg.set_node_value(a, "Height", "5'11");
+    mg.set_node_value(a, "Credit Score", "900");
+    
+    
+    for (let pair of mg.iter_node_values(0)) {
+        console.log(pair);
+    } 
 }
