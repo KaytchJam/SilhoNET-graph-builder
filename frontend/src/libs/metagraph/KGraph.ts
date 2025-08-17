@@ -1,5 +1,6 @@
 import type { EnumLike } from "../../utils/enums/EnumLike";
 
+
 // Index types
 export type node_idx_t = number;
 export type edge_idx_t = number;
@@ -18,11 +19,12 @@ type TNodeEnum = EnumLike<typeof NodeEnum>;
 // Constants
 const MAX_INDEX: number = Number.MAX_SAFE_INTEGER;
 
+
 // Node class
 class kNode<N> {
     weight: N;
     next: EdgeLink;
-
+    
     constructor(weight: N, next: EdgeLink) {
         this.weight = weight;
         this.next = next;
@@ -34,7 +36,7 @@ class kNode<N> {
             { outgoing: MAX_INDEX, incoming: MAX_INDEX }
         );
     }
-
+    
     index_edge_link(idx: TEdgeEnum): edge_idx_t {
         return idx == EdgeEnum.OUTGOING ? this.next.outgoing : this.next.incoming;
     }
@@ -45,7 +47,7 @@ class kEdge<E> {
     weight: E;
     nodes: NodeLink;
     next: EdgeLink;
-
+    
     constructor(weight: E, nodes: NodeLink, next: EdgeLink) {
         this.weight = weight;
         this.nodes = nodes;
@@ -60,7 +62,7 @@ class kEdge<E> {
             { outgoing: MAX_INDEX, incoming: MAX_INDEX }
         );
     }
-
+    
     index_edge_link(idx: TEdgeEnum): edge_idx_t {
         return idx == EdgeEnum.INCOMING ? this.next.incoming : this.next.outgoing;
     }
@@ -70,20 +72,45 @@ class kEdge<E> {
     }
 };
 
-type EdgeData<E> = {
+export type EdgeData<E> = {
     node_idx: node_idx_t;
     edge_weight: E;
 }
 
-// interface IGraph {
-//
-// }
+/** INTERFACES */
 
-// Graph class
-export class kGraph<N,E> {
+/** Represents a neighborhood of a given node roughly */
+export interface IndexedNeighborhood<E> {
+    for_each(F: (value: EdgeData<E>, index: number | undefined) => void): void;
+    contains(n: node_idx_t): boolean;
+    [Symbol.iterator](): Iterator<EdgeData<E>>;
+}
+
+/** Represents a graph roughly */
+export interface IndexedGraph<N,E> {
+    add_node(w: N): node_idx_t;
+    add_edge(a: node_idx_t, b: node_idx_t, w: E): edge_idx_t;
+
+    node_weight(n: node_idx_t): N;
+    edge_weight(e: edge_idx_t): E;
+    edge_nodes(e: edge_idx_t): NodeLink;
+
+    outgoing(n: node_idx_t): IndexedNeighborhood<E>;
+    incoming(n: node_idx_t): IndexedNeighborhood<E>;
+
+    num_nodes(): number;
+    num_edges(): number;
+}
+
+// interface IGraph {
+    //
+    // }
+    
+    // Graph class
+export class kGraph<N,E> implements IndexedGraph<N,E> {
     protected nodes: kNode<N>[];
     protected edges: kEdge<E>[];
-
+    
     public constructor() {
         this.nodes = [];
         this.edges = [];
@@ -213,7 +240,7 @@ export class kGraph<N,E> {
 
     /** Treats some edge in the graph at edge_idx_t `idx` as the "head" of a linked list of edges. Offers utility
      * functions to simplify iterating through a set of Edges. */
-    EdgeList = class EdgeList implements Iterable<EdgeData<E>> {
+    EdgeList = class EdgeList implements Iterable<EdgeData<E>>, IndexedNeighborhood<E> {
         readonly idx: edge_idx_t;
         readonly parent: kGraph<N,E>;
         readonly dir: TEdgeEnum;
@@ -272,6 +299,17 @@ export class kGraph<N,E> {
         /** Shorthand for `[Symbol.iterator]()` */
         iter(): Iterator<EdgeData<E>> {
             return this[Symbol.iterator]();
+        }
+
+        /** Returns whether a node in this neighborhood has edge_idx_t */
+        contains(n: node_idx_t): boolean {
+            for (let value of this) {
+                if (value.node_idx === n) {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
     
