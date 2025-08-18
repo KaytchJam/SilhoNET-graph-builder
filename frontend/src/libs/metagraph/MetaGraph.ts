@@ -1,6 +1,6 @@
 import { kGraph, type IndexedGraph, type node_idx_t, type edge_idx_t, type IndexedNeighborhood } from "./KGraph";
 
-class MetaGraph<N,E> implements IndexedGraph<N,E> {
+export class MetaGraph<N,E> implements IndexedGraph<N,E> {
     private attribute_map: Map<string,string[]>;
     private topology: kGraph<N,E>;
 
@@ -143,7 +143,7 @@ class MetaGraph<N,E> implements IndexedGraph<N,E> {
 
 /** Foo */
 function foo(): void {
-    let mg = new MetaGraph<void,void>();
+    let mg: MetaGraph<void,void> = new MetaGraph<void,void>();
     
     const a = mg.add_node();
     mg.add_node();
