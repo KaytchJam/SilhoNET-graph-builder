@@ -2,7 +2,7 @@
 import type { vec2 } from "gl-matrix";
 
 // Graph related
-import { kGraph, type node_idx_t } from "./KGraph";
+import { type node_idx_t, type IndexedGraph } from "./KGraph";
 
 // Rendering related
 import { init_shader_program } from "../../utils/webgl/shader_funcs";
@@ -11,8 +11,15 @@ import { render_graph_vs_text, render_graph_fs_text } from "../../shaders/shader
 /** Quick coupling of number of nodes & number of edges together */
 type GraphSize = { num_nodes: number, num_edges: number };
 
+/** Take in a G, and return a G. Made to make `GraphMap` slightly less verbose */
+type GraphTransformer<G> = (graph: G) => G;
+
 /** Function that takes in graph G and returns graph G'. The mapping function must preserve the graph types N and E */
-type GraphMap<N,E> = (G: kGraph<N,E>) => kGraph<N,E>;
+type GraphMap<N, E, G extends IndexedGraph<N, E>> = GraphTransformer<G>;
+
+interface Positioned {
+    position: vec2;
+}
 
 /** Tracks node position, name, and other relevant data (tbd) */
 export type DrawNode = {
@@ -26,8 +33,15 @@ export function make_drawnode(x: number, y: number): DrawNode {
     };
 }
 
-export class RenderGraph {
-    private topology: kGraph<DrawNode,string>;
+export class PRenderGraph<N extends Positioned, G extends IndexedGraph<N,any>> {
+    topology: G;
+    constructor(gl: WebGL2RenderingContext, graph_input: G) {
+        this.topology = graph_input;
+    }
+}
+
+export class RenderGraph<N extends Positioned, G extends IndexedGraph<N,any>> {
+    private topology: G;
     private program: WebGLProgram;
     
     private vao: WebGLVertexArrayObject;
@@ -41,8 +55,8 @@ export class RenderGraph {
     private dirty_nodes: boolean;
     private dirty_edges: boolean;
 
-    constructor(gl: WebGL2RenderingContext) {
-        this.topology = new kGraph<DrawNode,string>();
+    constructor(gl: WebGL2RenderingContext, input_graph: G) {
+        this.topology = input_graph;
         this.dirty_nodes = false;
         this.dirty_edges = false;
 
@@ -109,7 +123,7 @@ export class RenderGraph {
     }
 
     /** Exposes the internal graph of the RenderGraph and updates the dirty field if a change in the number of edges or nodes is observed*/
-    public update(M: GraphMap<DrawNode,string>): RenderGraph {
+    public update(M: GraphMap<N, any, G>): RenderGraph<N,G> {
         const prev_size: GraphSize = { num_nodes: this.topology.num_nodes(), num_edges: this.topology.num_edges() };
         this.topology = M(this.topology);
         this.dirty_nodes = prev_size.num_nodes !== this.topology.num_nodes();
@@ -117,7 +131,7 @@ export class RenderGraph {
         return this;
     }
 
-    public peek(M: (g: Readonly<kGraph<DrawNode,string>>) => void): RenderGraph {
+    public peek(M: (g: Readonly<G>) => void): RenderGraph<N,G> {
         M(this.topology);
         return this;
     };
@@ -126,7 +140,7 @@ export class RenderGraph {
         return this.dirty_edges || this.dirty_nodes;
     }
 
-    public expose_graph(): kGraph<DrawNode, string> {
+    public expose_graph(): G {
         return this.topology;
     }
 
