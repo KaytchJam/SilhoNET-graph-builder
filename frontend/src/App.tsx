@@ -1,12 +1,19 @@
-import './App.css'
-import WebGLComponentTwo from './components/WebGLComponentTwo'
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import './App.css';
+
+// My components
+import { WelcomePage } from "./components/Welcome";
+import { EnginePage } from "./components/Engine";
 
 function App() {
   return (
-    <>
-      <h1>Hello world</h1>
-    </>
-  )
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<WelcomePage/>}></Route>
+        <Route path="/engine" element={<EnginePage/>}></Route>
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;

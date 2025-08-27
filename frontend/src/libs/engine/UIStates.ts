@@ -1,4 +1,4 @@
-import type { EnumLike } from "../../utils/enums/EnumLike";
+import type { EnumLike } from "../../utils/types/EnumLike";
 
 export const ClickEnum = { 
     NONE: 0,

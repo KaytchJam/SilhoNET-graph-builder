@@ -48,6 +48,23 @@ export const render_graph_vs_text = glsl`
     }
 `;
 
+export const rg_node_vs_text = glsl`
+    precision lowp float;
+
+    varying float vNodeIndex;
+
+    void main() {
+        const float width = 600.0;
+        const float height = 400.0;
+
+        const float nx = aVertexPosition.x / width * 2.0 - 1.0;
+        const float ny = (height - aVertexPosition.y) / height * 2.0 - 1.0;
+
+        vNodeIndex = float(gl_InstanceID);
+        gl_Position = vec4(nx, ny, 0.0, 1.0);
+    }
+`;
+
 /** Fragment shader text for the Graph nodes on the canvas */
 export const render_graph_fs_text = glsl`
     precision lowp float;

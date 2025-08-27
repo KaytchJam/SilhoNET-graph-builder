@@ -1,12 +1,11 @@
-// Math related
-import type { vec2 } from "gl-matrix";
-
 // Graph related
-import { type node_idx_t, type IndexedGraph } from "./KGraph";
+import { type node_idx_t, type IndexedGraph } from "./metagraph/KGraph";
 
 // Rendering related
 import { init_shader_program } from "../../utils/webgl/shader_funcs";
 import { render_graph_vs_text, render_graph_fs_text } from "../../shaders/shader_strings";
+import { CircleInstance } from "./gui/Circle";
+import { type Positionable } from "../../utils/types/Positionable";
 
 /** Quick coupling of number of nodes & number of edges together */
 type GraphSize = { num_nodes: number, num_edges: number };
@@ -17,30 +16,9 @@ type GraphTransformer<G> = (graph: G) => G;
 /** Function that takes in graph G and returns graph G'. The mapping function must preserve the graph types N and E */
 type GraphMap<N, E, G extends IndexedGraph<N, E>> = GraphTransformer<G>;
 
-interface Positioned {
-    position: vec2;
-}
+export class RenderGraph<N extends Positionable, G extends IndexedGraph<N,any>> {
+    // private static node_circle_instance: CircleInstance = new CircleInstance();
 
-/** Tracks node position, name, and other relevant data (tbd) */
-export type DrawNode = {
-    position: vec2,
-}
-
-/** Constructs a DrawNode */
-export function make_drawnode(x: number, y: number): DrawNode {
-    return {
-        position: [x, y],
-    };
-}
-
-export class PRenderGraph<N extends Positioned, G extends IndexedGraph<N,any>> {
-    topology: G;
-    constructor(gl: WebGL2RenderingContext, graph_input: G) {
-        this.topology = graph_input;
-    }
-}
-
-export class RenderGraph<N extends Positioned, G extends IndexedGraph<N,any>> {
     private topology: G;
     private program: WebGLProgram;
     
@@ -94,18 +72,17 @@ export class RenderGraph<N extends Positioned, G extends IndexedGraph<N,any>> {
     private build_vertices(gl: WebGL2RenderingContext) {
         const positions: Float32Array = new Float32Array(this.topology.num_nodes() * 3);
         for (let n = 0; n < this.topology.num_nodes(); n++) {
-            const M: DrawNode = this.topology.node_weight(n);
+            const [x, y] = this.topology.node_weight(n).get_xy();
             const buffer_idx: number = n * 3;
 
-            positions[buffer_idx] = M.position[0];
-            positions[buffer_idx + 1] = M.position[1];
+            positions[buffer_idx] = x;
+            positions[buffer_idx + 1] = y;
             positions[buffer_idx + 2] = n;
         }
 
         gl.bindVertexArray(this.vao);
         gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
         gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
-        // console.log("Vertices: ", positions);
     }
 
     private build_edges(gl: WebGL2RenderingContext) {

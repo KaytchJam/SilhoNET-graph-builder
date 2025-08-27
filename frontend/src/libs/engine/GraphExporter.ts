@@ -1,8 +1,8 @@
-import { kGraph } from "./KGraph";
-import type { DrawNode } from "./RenderGraph";
+import type { node_idx_t } from "./metagraph/KGraph";
+import { MetaGraph } from "./metagraph/MetaGraph";
 
 export interface MetaGraphExporter {
-    serialize(G: kGraph<DrawNode,string>, metamap: Map<string,string[]>): string;
+    serialize(G: MetaGraph<any,string>): string;
     // deserialize(data: string): kGraph<MetaNode,string>; not really needed might do this after everything else
 }
 
@@ -18,16 +18,15 @@ export class GraphMLExporter implements MetaGraphExporter {
         return `\t<key id="${id}" for="${gtarget}" attr.name="${attr_name}" attr.type="${attr_type}"/>\n`;
     }
 
-    /** Add XML key-nodes based on the keys in `metamap` */
-    private static add_node_keys(metamap: Map<string,string[]>) {
+    /** Add XML key-nodes based on the keys in the MetaGraph */
+    private static add_node_keys(G: MetaGraph<any,string>) {
         let keyset: string = "";
         let enumerate: number = 0;
 
-        for (let [keyname, _] of metamap) {
+        for (let keyname of G.iter_keys()) {
             keyset += GraphMLExporter.add_key(`d${enumerate}`, "node", keyname, "string");
+            enumerate += 1;
         }
-
-        return keyset;
     }
     
     /** Add an XML Graph-node */
@@ -35,17 +34,17 @@ export class GraphMLExporter implements MetaGraphExporter {
         return `\t<graph id="${id}" edgedefault="${edgedefault}">\n`;
     }
 
-    private static add_node_data(data_index: number, node_idx: number, metalist: string[]) {
-        return `\t\t\t<data key="d${data_index}">${metalist[node_idx]}</data>\n`;
+    private static add_node_data(data_index: number, data: string) {
+        return `\t\t\t<data key="d${data_index}">${data}</data>\n`;
     }
 
-    /** Build an XML node-node */
-    private static add_node(node_idx: number, metamap: Map<string,string[]>): string {
+    /** Build an XML data-node */
+    private static add_node(G: MetaGraph<any,string>, node_idx: node_idx_t) {
         let data_buff: string = "";
-        let data_index = 0;
+        let data_index: number = 0;
 
-        for (let [_, list] of metamap) {
-            data_buff += this.add_node_data(data_index, node_idx, list);
+        for (let [_, val] of G.iter_node_values(node_idx)) {
+            data_buff += this.add_node_data(data_index, val);
             data_index += 1;
         }
 
@@ -53,25 +52,25 @@ export class GraphMLExporter implements MetaGraphExporter {
     }
     
     /** Build an XML edge-node */
-    private add_edge(G: kGraph<DrawNode, string>, edge_idx: number): string {
+    private add_edge(G: MetaGraph<any,string>, edge_idx: number): string {
         const weight: string = G.edge_weight(edge_idx);
         const link = G.edge_nodes(edge_idx);
         return `\t\t<edge id="e${edge_idx}" source="n${link.from_node}" target="n${link.to_node}">\n\t\t\t<data key="d1">${weight}</data>\n\t\t</edge>\n`;
     }
 
     /** Takes in a kGraph and serializes it into string form */
-    public serialize(G: kGraph<DrawNode, string>, metamap: Map<string,string[]>): string {
+    public serialize(G: MetaGraph<any,any>): string {
         const N: number = G.num_nodes();
         const E: number = G.num_edges();
         
         let data: string = this.add_header();
-        data += GraphMLExporter.add_node_keys(metamap);
+        data += GraphMLExporter.add_node_keys(G);
         data += GraphMLExporter.add_key("d1", "edge", "e-text", "string");
         data += GraphMLExporter.add_graph("G", "directed");
 
         // O(N * A) where N is the number of graph nodes & A is the number of attributes
         for (let i = 0; i < N; i++) {
-            data += GraphMLExporter.add_node(i, metamap);
+            data += GraphMLExporter.add_node(G, i);
         }
         
         for (let e = 0; e < E; e++) {
@@ -86,7 +85,7 @@ export class GraphMLExporter implements MetaGraphExporter {
 /** DOT format */
 export class DOTExporter implements MetaGraphExporter {
     /** Take in a kGraph and serializes it into string form */
-    serialize(G: kGraph<DrawNode, string>, _: Map<string,string[]>): string {
+    serialize(G: MetaGraph<any,string>): string {
         const E: number = G.num_edges();
 
         let data: string = "strict digraph {\n";
@@ -101,8 +100,8 @@ export class DOTExporter implements MetaGraphExporter {
 
 /** JSON format */
 export class JSONExporter implements MetaGraphExporter {
-    serialize(g: kGraph<DrawNode, string>, _: Map<string,string[]>): string {
-        return "";
+    serialize(G: MetaGraph<any,string>): string {
+        return G.edge_weight(0);
     }
 }
 

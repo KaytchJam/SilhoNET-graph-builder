@@ -45,3 +45,35 @@ body {
 .node-attr-label {
   display: block;
 }
+
+/** WELCOME PAGE */
+
+#welcome-div-body {
+  width: 60%;
+  margin: 0 auto;
+  padding-top: 20px;
+}
+
+#welcome-div-logo {
+  position: relative;
+  width: 80%;
+}
+
+#welcome-div-get-started {
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
+  padding-top: 1em;
+}
+
+#app-footer-content {
+  width: 50%;
+  margin-top: 2em;
+  margin-bottom: 2em;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
+/** APP PAGE */
