@@ -4,7 +4,7 @@ import { type node_idx_t, type IndexedGraph } from "./metagraph/KGraph";
 // Rendering related
 import { init_shader_program } from "../../utils/webgl/shader_funcs";
 import { render_graph_vs_text, render_graph_fs_text } from "../../shaders/shader_strings";
-import { CircleInstance } from "./gui/Circle";
+// import { CircleInstance } from "./gui/Circle";
 import { type Positionable } from "../../utils/types/Positionable";
 
 /** Quick coupling of number of nodes & number of edges together */
@@ -16,8 +16,9 @@ type GraphTransformer<G> = (graph: G) => G;
 /** Function that takes in graph G and returns graph G'. The mapping function must preserve the graph types N and E */
 type GraphMap<N, E, G extends IndexedGraph<N, E>> = GraphTransformer<G>;
 
+/** Takes in some type G that implements IndexGraph<N,any> and renders it */
 export class RenderGraph<N extends Positionable, G extends IndexedGraph<N,any>> {
-    // private static node_circle_instance: CircleInstance = new CircleInstance();
+    // private static node_circle_instance: CircleInstance = new CircleInstance(81);
 
     private topology: G;
     private program: WebGLProgram;
@@ -113,13 +114,8 @@ export class RenderGraph<N extends Positionable, G extends IndexedGraph<N,any>> 
         return this;
     };
 
-    public is_dirty(): boolean {
-        return this.dirty_edges || this.dirty_nodes;
-    }
-
-    public expose_graph(): G {
-        return this.topology;
-    }
+    public is_dirty(): boolean { return this.dirty_edges || this.dirty_nodes; }
+    public expose_graph(): G { return this.topology; }
 
     public set_uniform_indices(gl: WebGL2RenderingContext, hover_index: node_idx_t, select_index: node_idx_t) {
         gl.useProgram(this.program);
