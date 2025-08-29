@@ -16,6 +16,7 @@ export class Coord2D implements Positionable {
 
     static from(arr: [number, number]): Coord2D { return new Coord2D(arr[0], arr[1]); }
     static from_coord(other: Coord2D): Coord2D { return new Coord2D(other.x, other.y); }
+    static from_pos<P extends Positionable>(other: P): Coord2D { return new Coord2D(other.get_x(), other.get_y()); }
 
     get_x(): number { return this.x; }
     get_y(): number { return this.y; }
