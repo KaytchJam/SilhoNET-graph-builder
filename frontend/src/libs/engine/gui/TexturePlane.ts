@@ -82,9 +82,9 @@ export class TexturePlane {
         return vao;
     }
 
-    constructor(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext, img_in: HTMLImageElement) {
-        this.length = canvas.width;
-        this.height = canvas.height;
+    constructor(gl: WebGL2RenderingContext, img_in: HTMLImageElement) {
+        this.length = gl.canvas.width;
+        this.height = gl.canvas.height;
 
         this.program = init_shader_program(gl, texture_plane_vs_text, texture_plane_fs_text)!;
         this.vao = TexturePlane.init_vao(gl, this.program);
