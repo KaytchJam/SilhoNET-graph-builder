@@ -4,13 +4,17 @@ export class CircleInstance {
     private vertex_data: Float32Array;
     private rad: number;
 
-    public constructor(num_points: number = 9, radius = 1.0) {
-        num_points = Math.max(9, num_points); // the minimum number of points we'll allow is 9
+    /** Create a `CircleInstance` where `boundary_points` defines the number
+     * of points to be on the circumference of the circle. The greater the
+     * number chosen for `boundary_points` is, the more "circular" the circle
+     * will appear. */
+    public constructor(boundary_points: number = 9, radius = 1.0) {
+        boundary_points = Math.max(9, boundary_points); // the minimum number of points we'll allow is 9
 
-        this.vertex_data = new Float32Array((num_points + 1) * 2);
+        this.vertex_data = new Float32Array((boundary_points + 1) * 2);
         this.rad = radius;
 
-        const delta_theta: number = 2 * Math.PI / (num_points - 1);
+        const delta_theta: number = 2 * Math.PI / (boundary_points - 1);
         let theta: number = 0.0;
 
         // central vertex
@@ -18,14 +22,14 @@ export class CircleInstance {
         this.vertex_data[1] = 0.0;
 
         // the surrounding vertex_data
-        for (let i = 0; i < num_points - 1; i++) {
+        for (let i = 0; i < boundary_points - 1; i++) {
             const idx: number = (i + 1) * 2;
             this.vertex_data[idx] = Math.cos(theta) * this.rad;
             this.vertex_data[idx + 1] = Math.sin(theta) * this.rad;
             theta += delta_theta;
         }
 
-        this.vertex_data[this.vertex_data.length - 2] = 1.0;
+        this.vertex_data[this.vertex_data.length - 2] = this.rad;
         this.vertex_data[this.vertex_data.length - 1] = 0.0;
     }
 
