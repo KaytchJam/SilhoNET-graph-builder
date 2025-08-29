@@ -18,14 +18,14 @@ export const ImplPositionable = {
     distance<P extends Positionable>(p: P, q: P): number {
         const [x1, y1] = p.get_xy();
         const [x2, y2] = q.get_xy();
-        return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+        return Math.hypot(x2 - x1, y2 - y1);
     },
 
     /** Calculates the squared euclidean distance between Positionable p and q */
     distance_squared<P extends Positionable>(p: P, q: P): number {
         const [x1, y1] = p.get_xy();
         const [x2, y2] = q.get_xy();
-        return Math.hypot(x2 - x1, y2 - y1);
+        return Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2)
     },
     
     /** Adds two positionables together and returns the destination to `dest`. If no destination
