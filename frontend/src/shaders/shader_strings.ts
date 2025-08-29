@@ -51,12 +51,13 @@ export const render_graph_vs_text = glsl`
 export const rg_node_vs_text = glsl`
     precision lowp float;
 
+    attribute vec4 aVertexPosition;
     varying float vNodeIndex;
+    uniform vec2 uResolution2D;
 
     void main() {
-        const float width = 600.0;
-        const float height = 400.0;
-
+        const float width = uResolution2D.x;
+        const float height = uResolution2D.y;
         const float nx = aVertexPosition.x / width * 2.0 - 1.0;
         const float ny = (height - aVertexPosition.y) / height * 2.0 - 1.0;
 
