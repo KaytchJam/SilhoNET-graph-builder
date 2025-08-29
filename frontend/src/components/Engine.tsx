@@ -1,89 +1,110 @@
 import React from "react";
 import { CircleInstance } from "../libs/engine/gui/Circle";
 import { init_shader_program } from "../utils/webgl/shader_funcs"
-
-
-
+import { Coord2D } from "../libs/engine/GraphEngine";
+import { ImplPositionable } from "../utils/types/Positionable";
 
 /** Rendering many circles with our CircleInstance WITHOUT using Instanced Rendering */
-function no_instance_scene(canvas: HTMLCanvasElement): void {
-    /** Vertex Shader */
-    const circle_shader_vs: string = `
-    precision lowp float;
+// function no_instance_scene(canvas: HTMLCanvasElement): void {
+//     /** Vertex Shader */
+//     const circle_shader_vs: string = `
+//     precision lowp float;
     
-    attribute vec2 aVertexPosition;
-    uniform vec2 uVertexOffset;
+//     attribute vec2 aVertexPosition;
+//     uniform vec2 uVertexOffset;
     
-    void main() {
-        const float width = 600.0;
-        const float height = 400.0;
+//     void main() {
+//         const float width = 600.0;
+//         const float height = 400.0;
         
-        float sX = aVertexPosition.x + uVertexOffset.x;
-        float sY = aVertexPosition.y + uVertexOffset.y;
-        float nx = sX / width * 2.0 - 1.0;
-        float ny = (height - sY) / height * 2.0 - 1.0;
+//         float sX = aVertexPosition.x + uVertexOffset.x;
+//         float sY = aVertexPosition.y + uVertexOffset.y;
+//         float nx = sX / width * 2.0 - 1.0;
+//         float ny = (height - sY) / height * 2.0 - 1.0;
         
-        gl_Position = vec4(nx, ny, 0.0, 1.0);
-        }
-    `;
+//         gl_Position = vec4(nx, ny, 0.0, 1.0);
+//         }
+//     `;
     
         
-    /** Fragment Shader */
-    const circle_shader_fs: string = `
-    precision lowp float;
-    void main() {
-        gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
-        }
-    `;
+//     /** Fragment Shader */
+//     const circle_shader_fs: string = `
+//     precision lowp float;
+//     void main() {
+//         gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+//         }
+//     `;
         
-    const positions = [
-        100.0, 200.0,
-        150.0, 50.0,
-        350.0, 100.0
-    ];
+//     const positions = [
+//         100.0, 200.0,
+//         150.0, 50.0,
+//         350.0, 100.0
+//     ];
             
-    const gl: WebGL2RenderingContext = canvas.getContext("webgl2")!;
-    const num_instances: number = positions.length / 2;
-    const program: WebGLProgram = init_shader_program(gl, circle_shader_vs, circle_shader_fs)!;
-    const vbo: WebGLBuffer = gl.createBuffer();
-    const circle_inst = new CircleInstance(100, 20);
+//     const gl: WebGL2RenderingContext = canvas.getContext("webgl2")!;
+//     const num_instances: number = positions.length / 2;
+//     const program: WebGLProgram = init_shader_program(gl, circle_shader_vs, circle_shader_fs)!;
+//     const vbo: WebGLBuffer = gl.createBuffer();
+//     const circle_inst = new CircleInstance(100, 20);
     
-    gl.useProgram(program);
-    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-    gl.bufferData(gl.ARRAY_BUFFER, circle_inst.data(), gl.STATIC_DRAW);
+//     gl.useProgram(program);
+//     gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+//     gl.bufferData(gl.ARRAY_BUFFER, circle_inst.data(), gl.STATIC_DRAW);
     
-    const aVPos = gl.getAttribLocation(program, "aVertexPosition"); 
-    const uVOff = gl.getUniformLocation(program, "uVertexOffset");
+//     const aVPos = gl.getAttribLocation(program, "aVertexPosition"); 
+//     const uVOff = gl.getUniformLocation(program, "uVertexOffset");
     
-    gl.vertexAttribPointer(
-        aVPos,
-        2,
-        gl.FLOAT,
-        false,
-        0,
-        0
-    );
-    gl.enableVertexAttribArray(aVPos);
+//     gl.vertexAttribPointer(
+//         aVPos,
+//         2,
+//         gl.FLOAT,
+//         false,
+//         0,
+//         0
+//     );
+//     gl.enableVertexAttribArray(aVPos);
     
-    const render_loop = (_ : number) => {
-        gl.clearColor(0.0, 0.0, 0.0, 1.0);
-        gl.enable(gl.DEPTH_TEST);
-        gl.clearDepth(1.0);
-        gl.depthFunc(gl.LEQUAL);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+//     const render_loop = (_ : number) => {
+//         gl.clearColor(0.0, 0.0, 0.0, 1.0);
+//         gl.enable(gl.DEPTH_TEST);
+//         gl.clearDepth(1.0);
+//         gl.depthFunc(gl.LEQUAL);
+//         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         
-        // since we're not instancing we have to loop multiple times
-        // to render multiple of the same object
-        for (let i = 0; i < num_instances; i++) {
-            const idx: number = i * 2;
-            gl.uniform2f(uVOff, positions[idx], positions[idx + 1]);
-            gl.drawArrays(gl.TRIANGLE_FAN, 0, circle_inst.num_points());
+//         // since we're not instancing we have to loop multiple times
+//         // to render multiple of the same object
+//         for (let i = 0; i < num_instances; i++) {
+//             const idx: number = i * 2;
+//             gl.uniform2f(uVOff, positions[idx], positions[idx + 1]);
+//             gl.drawArrays(gl.TRIANGLE_FAN, 0, circle_inst.num_points());
+//         }
+
+//         requestAnimationFrame(render_loop);
+//     };
+
+//     requestAnimationFrame(render_loop);
+// }
+
+function get_hover_id(mouse_pos: Coord2D, positions: number[], radii: number[]): number | null {
+    if (positions.length / 3 === 0 || radii.length === 0 || (positions.length / 3 !== radii.length)) { return null; }
+    
+    const other_coord: Coord2D = new Coord2D();
+    let closest_id: number = -1;
+    let closest_dist_sqd: number = Number.POSITIVE_INFINITY;
+
+    for (let i = 0; i < radii.length; i++) {
+        const pos_idx: number = i * 3;
+        other_coord.set_xy(positions[pos_idx], positions[pos_idx + 1]);
+        const cur_dist_sqd: number = ImplPositionable.distance_squared(mouse_pos, other_coord);
+        const cur_radius = radii[i];
+
+        if (cur_dist_sqd <= closest_dist_sqd && cur_dist_sqd < (cur_radius * cur_radius)) {
+            closest_dist_sqd = cur_dist_sqd;
+            closest_id = i;
         }
+    }
 
-        requestAnimationFrame(render_loop);
-    };
-
-    requestAnimationFrame(render_loop);
+    return closest_id;
 }
 
 /** Rendering many circles with our circle instance WITH instanced rendering */
@@ -92,14 +113,19 @@ function with_instance_scene(canvas: HTMLCanvasElement): void {
         precision lowp float;
     
         attribute vec2 aVertexPosition;
-        attribute vec2 aVertexOffset;
+        attribute vec3 aVertexOffset;
+        attribute float aRadius;
+
+        varying float vCircleID;
     
         void main() {
             const float width = 600.0;
             const float height = 400.0;
+
+            vCircleID = aVertexOffset.z; // extract the circle ID
     
-            float sX = aVertexPosition.x + aVertexOffset.x;
-            float sY = aVertexPosition.y + aVertexOffset.y;
+            float sX = aVertexPosition.x * aRadius + aVertexOffset.x;
+            float sY = aVertexPosition.y * aRadius + aVertexOffset.y;
 
             float nx = sX / width * 2.0 - 1.0;
             float ny = (height - sY) / height * 2.0 - 1.0;
@@ -109,23 +135,38 @@ function with_instance_scene(canvas: HTMLCanvasElement): void {
     `;
 
      /** Fragment Shader */
-    const circle_shader_fs: string = `
-    precision lowp float;
-    void main() {
-        gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+    const circle_shader_instanced_fs: string = `
+        precision lowp float;
+
+        uniform int uHoverID;
+        varying float vCircleID;
+
+        void main() {
+            vec4 color_out = vec4(0.0, 1.0, 0.0, 1.0);
+            if (uHoverID == int(vCircleID)) {
+                color_out = vec4(1.0, 0.0, 0.0, 1.0);
+            }
+
+            gl_FragColor = color_out;
         }
     `;
 
-    const circle_inst = new CircleInstance(100, 20);
+    const circle_inst = new CircleInstance(9, 1);
     const positions: number[] = [
-        100.0, 200.0,
-        150.0, 50.0,
-        350.0, 100.0
+        100.0, 200.0, 0.0, // index (0-1) = offset, // index (2) = instance index
+        150.0, 50.0, 1.0,
+        350.0, 100.0, 2.0
+    ];
+
+    const radii: number[] = [
+        20.0,
+        15.0,
+        40.0
     ];
 
     const gl: WebGL2RenderingContext = canvas.getContext("webgl2")!;
-    const num_instances: number = positions.length / 2;
-    const program: WebGLProgram = init_shader_program(gl, circle_shader_instanced_vs, circle_shader_fs)!;
+    const num_instances: number = positions.length / 3;
+    const program: WebGLProgram = init_shader_program(gl, circle_shader_instanced_vs, circle_shader_instanced_fs)!;
     const vbo: WebGLBuffer = gl.createBuffer();
 
     gl.useProgram(program);
@@ -153,7 +194,7 @@ function with_instance_scene(canvas: HTMLCanvasElement): void {
 
     gl.vertexAttribPointer(
         aVOff,
-        2,
+        3,
         gl.FLOAT,
         false,
         0,
@@ -163,12 +204,50 @@ function with_instance_scene(canvas: HTMLCanvasElement): void {
     gl.enableVertexAttribArray(aVOff);
     gl.vertexAttribDivisor(aVOff, 1);
 
+    const radii_buffer: WebGLBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, radii_buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(radii), gl.STATIC_DRAW);
+
+    const aRad = gl.getAttribLocation(program, "aRadius");
+
+    gl.vertexAttribPointer(
+        aRad,
+        1,
+        gl.FLOAT,
+        false,
+        0,
+        0
+    );
+
+    gl.enableVertexAttribArray(aRad);
+    gl.vertexAttribDivisor(aRad, 1);
+
+    let uHPos = gl.getUniformLocation(program, "uHoverID");
+    if (uHPos === null) {
+        console.log("Couldn't find the position of uniform `uHoverID`");
+    }
+
+    const mouse_pos: Coord2D = new Coord2D();
+    (gl.canvas as HTMLCanvasElement).addEventListener("mousemove", (event: MouseEvent) => {
+        const bb: DOMRect = (gl.canvas as HTMLCanvasElement).getBoundingClientRect();
+        mouse_pos.set_xy(
+            event.clientX - bb.left,
+            event.clientY - bb.top
+        );
+    });
+    
+    // gl.useProgram(program);
     const render = (_: number) => {
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.enable(gl.DEPTH_TEST);
         gl.clearDepth(1.0);
         gl.depthFunc(gl.LEQUAL);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        // gl.useProgram(program);
+
+        const mouse_pos_local: Coord2D = Coord2D.from_coord(mouse_pos);
+        const id = ((id_in: number | null) => { return !(id_in === null || id_in === -1) ? id_in : -1 })(get_hover_id(mouse_pos_local, positions, radii));
+        gl.uniform1i(uHPos, id); 
 
         gl.drawArraysInstanced(gl.TRIANGLE_FAN, 0, circle_inst.num_points(), num_instances);
         requestAnimationFrame(render);
@@ -181,7 +260,6 @@ export function EnginePage(): React.JSX.Element {
     let ref = React.useRef<HTMLCanvasElement>(null);
 
     React.useEffect(() => {
-        // no_instance_scene(ref.current!);
         with_instance_scene(ref.current!);
     }, []);
 
