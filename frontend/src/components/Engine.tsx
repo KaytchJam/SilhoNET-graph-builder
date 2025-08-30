@@ -263,7 +263,9 @@ function time_based_with_instance_scene(canvas: HTMLCanvasElement) {
         void main() {
             vec4 color_out = vec4(0.0, 1.0, 0.0, 1.0);
             if (uHoverID == int(vCircleID)) {
-                color_out = vec4(smooth_lerp(color_out.xyz, vec3(1.0, 0.0, 0.0), vHoverProgress), 1.0);
+                vec3 target = vec3(1.0, 0.0, 0.0);
+                // color_out = vec4(smooth_lerp(color_out.xyz, target, vHoverProgress), 1.0);
+                color_out = vec4(target, 1.0);
             }
 
             gl_FragColor = color_out;
