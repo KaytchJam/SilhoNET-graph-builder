@@ -198,24 +198,40 @@ function with_instance_scene(canvas: HTMLCanvasElement): void {
     requestAnimationFrame(render);
 }
 
-function time_based_with_instance_scene() {
+function clamp(lower: number, value: number, upper: number) {
+    return Math.min(upper, Math.max(lower, value));
+}
+
+function time_based_with_instance_scene(canvas: HTMLCanvasElement) {
     const circle_shader_instanced_vs: string = `
         precision lowp float;
     
         attribute vec2 aVertexPosition;
         attribute vec3 aVertexOffset;
         attribute float aRadius;
+        attribute float aHoverProgress;
 
         varying float vCircleID;
+
+        float lerp(float a, float b, float t) {
+            return (1.0 - t) * a + t * b;
+        }
+
+        float smooth_lerp(float a, float b, float t) {
+            float t3 = t * t * t;
+            t = 3.0 * t3 - 2.0 * t3;
+            return lerp(a, b, t);
+        }
     
         void main() {
             const float width = 600.0;
             const float height = 400.0;
 
             vCircleID = aVertexOffset.z; // extract the circle ID
-    
-            float sX = aVertexPosition.x * aRadius + aVertexOffset.x;
-            float sY = aVertexPosition.y * aRadius + aVertexOffset.y;
+
+            float radius = smooth_lerp(aRadius, aRadius + 5.0, aHoverProgress);
+            float sX = aVertexPosition.x * radius + aVertexOffset.x;
+            float sY = aVertexPosition.y * radius + aVertexOffset.y;
 
             float nx = sX / width * 2.0 - 1.0;
             float ny = (height - sY) / height * 2.0 - 1.0;
@@ -257,10 +273,10 @@ function time_based_with_instance_scene() {
     const gl: WebGL2RenderingContext = canvas.getContext("webgl2")!;
     const num_instances: number = positions.length / 3;
     const program: WebGLProgram = init_shader_program(gl, circle_shader_instanced_vs, circle_shader_instanced_fs)!;
-    const vbo: WebGLBuffer = gl.createBuffer();
-
+    
     gl.useProgram(program);
-
+    
+    const vbo: WebGLBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
     gl.bufferData(gl.ARRAY_BUFFER, circle_inst.data(), gl.STATIC_DRAW);
     
@@ -326,28 +342,43 @@ function time_based_with_instance_scene() {
         );
     });
 
-    // Radius update data
-    const radii_initials: number[] = radii.slice();
-    const MI: number = 10; // max growth we allow in circle size
-    const dg: number = 0.2; // change in growth per frame
+    // track the 'progress' each circle has made towards their growth target
+    const hover_progress: Float32Array = new Float32Array(radii.length).fill(0);
+    const hover_progress_buffer: WebGLBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, hover_progress_buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, hover_progress, gl.STATIC_DRAW);
+
+    const aHPro = gl.getAttribLocation(program, "aHoverProgress");
+    gl.vertexAttribPointer(
+        aHPro,
+        1,
+        gl.FLOAT,
+        false,
+        0,
+        0
+    );
+
+    gl.enableVertexAttribArray(aHPro);
+    gl.vertexAttribDivisor(aHPro, 1);
 
     let last_time: number = 0;
 
     const update = (time: number) => {
+        // update time
         const dt = (time - last_time) / 16.67;
         last_time = time;
 
+        // find the circle that we are hovering over (if any)
         const mouse_pos_local: Coord2D = Coord2D.from_coord(mouse_pos);
         const id = ((id_in: number | null) => { return !(id_in === null || id_in === -1) ? id_in : -1 })(get_hover_id(mouse_pos_local, positions, radii));
 
-        for (let i = 0; i < radii.length; i++) {
-            radii[i] = (i === id) 
-                ? Math.min(radii_initials[i] + MI, radii[i] + dg * dt)
-                : Math.max(radii_initials[i], radii[i] - dg * dt);
+        // if we're hovering over a circle, increase its "hover time"
+        for (let i = 0; i < hover_progress.length; i++) {
+            hover_progress[i] = clamp(0.0, (i == id) ? hover_progress[i] + dt : hover_progress[i] - dt, 1.0);
         }
         
-        gl.bindBuffer(gl.ARRAY_BUFFER, radii_buffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(radii), gl.STATIC_DRAW); // send current circle radius data
+        gl.bindBuffer(gl.ARRAY_BUFFER, hover_progress_buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, hover_progress, gl.STATIC_DRAW); // send current circle hover progress data
 
         gl.uniform1i(uHPos, id); // send data on the current hovered circle
     }
@@ -373,7 +404,7 @@ export function EnginePage(): React.JSX.Element {
     let ref = React.useRef<HTMLCanvasElement>(null);
 
     React.useEffect(() => {
-        with_instance_scene(ref.current!);
+        time_based_with_instance_scene(ref.current!);
     }, []);
 
     return (
