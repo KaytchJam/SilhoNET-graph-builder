@@ -212,6 +212,7 @@ function time_based_with_instance_scene(canvas: HTMLCanvasElement) {
         attribute float aHoverProgress;
 
         varying float vCircleID;
+        varying float vHoverProgress;
 
         float lerp(float a, float b, float t) {
             return (1.0 - t) * a + t * b;
@@ -228,6 +229,7 @@ function time_based_with_instance_scene(canvas: HTMLCanvasElement) {
             const float height = 400.0;
 
             vCircleID = aVertexOffset.z; // extract the circle ID
+            vHoverProgress = aHoverProgress;
 
             float radius = smooth_lerp(aRadius, aRadius + 5.0, aHoverProgress);
             float sX = aVertexPosition.x * radius + aVertexOffset.x;
@@ -246,11 +248,22 @@ function time_based_with_instance_scene(canvas: HTMLCanvasElement) {
 
         uniform int uHoverID;
         varying float vCircleID;
+        varying float vHoverProgress;
+
+        vec3 lerp(vec3 a, vec3 b, float t) {
+            return (1.0 - t) * a + t * b;
+        }
+
+        vec3 smooth_lerp(vec3 a, vec3 b, float t) {
+            float t3 = t * t * t;
+            t = 3.0 * t3 - 2.0 * t3;
+            return lerp(a, b, t);
+        }
 
         void main() {
             vec4 color_out = vec4(0.0, 1.0, 0.0, 1.0);
             if (uHoverID == int(vCircleID)) {
-                color_out = vec4(1.0, 0.0, 0.0, 1.0);
+                color_out = vec4(smooth_lerp(color_out.xyz, vec3(1.0, 0.0, 0.0), vHoverProgress), 1.0);
             }
 
             gl_FragColor = color_out;
