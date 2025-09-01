@@ -27,263 +27,347 @@ function get_hover_id(mouse_pos: Coord2D, positions: number[], radii: number[]):
     return closest_id;
 }
 
+/** Bounds a number `value` between thresholds `lower` and `upper` */
 function clamp(lower: number, value: number, upper: number) {
     return Math.min(upper, Math.max(lower, value));
 }
 
-function time_based_with_instance_scene(canvas: HTMLCanvasElement) {
-    const circle_shader_instanced_vs: string = `
-        precision lowp float;
-    
-        attribute vec2 aVertexPosition;
-        attribute vec3 aVertexOffset;
-        attribute float aRadius;
-        attribute float aHoverProgress;
+type Interval = {
+    low: number,
+    high: number
+};
 
-        varying float vCircleID;
-        varying float vHoverProgress;
+/** Randomly constructs Coord2D coordinates within the area covered by `x_range` and `y_range` */
+function random_coords(n: number, x_range: Interval, y_range: Interval): Coord2D[] {
+    let coords: Coord2D[] = new Array(n);
+    for (let i = 0; i < n; i++) {
+        coords[i] = Coord2D.from([
+            Math.random() * (x_range.high - x_range.low) + x_range.low,
+            Math.random() * (y_range.high - y_range.low) + y_range.low
+        ]);
+    }
+    return coords;
+}
 
-        float lerp(float a, float b, float t) {
-            return (1.0 - t) * a + t * b;
+// type Colors = {
+//     r: number,
+//     g: number,
+//     b: number
+// }
+
+// function random_colors(n: number): number[] {
+//     const colors = new Array(n);
+//     for (let i = 0; i < n; i++) {
+
+//     }
+
+//     return colors;
+// }
+
+type CanvasCallback = (cv: HTMLCanvasElement) => void;
+
+/** Hook for initializing the canvas & all structures dependent on its existence */
+function useCanvasInstantiator(callbacks?: CanvasCallback[] | undefined): CanvasCallback {
+    const setRef = React.useCallback((node: HTMLCanvasElement | null) => {
+        if (node) {
+            callbacks?.forEach((cb) => cb(node));
         }
+    }, [callbacks]);
+    return setRef;
+}
 
-        float smooth_lerp(float a, float b, float t) {
-            float t3 = t * t * t;
-            t = 3.0 * t3 - 2.0 * t3;
-            return lerp(a, b, t);
-        }
-    
-        void main() {
-            const float width = 600.0;
-            const float height = 400.0;
+/** Holds the state for our App --- very messy lol */
+type AppData = {
+    context: WebGL2RenderingContext,
+    num_circles: number
+    circle_instance: CircleInstance
+    positions: number[],
+    radii: number[],
+    hover_progress: Float32Array,
+    mouse_pos: Coord2D,
+    uHPos: WebGLUniformLocation | null,
+    hov_buffer: WebGLBuffer,
+    program: WebGLProgram | null
+}
 
-            vCircleID = aVertexOffset.z; // extract the circle ID
-            vHoverProgress = aHoverProgress;
-
-            float radius = smooth_lerp(aRadius, aRadius + 5.0, aHoverProgress);
-            float sX = aVertexPosition.x * radius + aVertexOffset.x;
-            float sY = aVertexPosition.y * radius + aVertexOffset.y;
-
-            float nx = sX / width * 2.0 - 1.0;
-            float ny = (height - sY) / height * 2.0 - 1.0;
-    
-            gl_Position = vec4(nx, ny, 0.0, 1.0);
-        }
-    `;
-
-     /** Fragment Shader */
-    const circle_shader_instanced_fs: string = `
-        precision lowp float;
-
-        uniform int uHoverID;
-        varying float vCircleID;
-        varying float vHoverProgress;
-
-        vec3 lerp(vec3 a, vec3 b, float t) {
-            return (1.0 - t) * a + t * b;
-        }
-
-        vec3 smooth_lerp(vec3 a, vec3 b, float t) {
-            float t3 = t * t * t;
-            t = 3.0 * t3 - 2.0 * t3;
-            return lerp(a, b, t);
-        }
-
-        void main() {
-            vec4 color_out = vec4(0.0, 1.0, 0.0, 1.0);
-            if (uHoverID == int(vCircleID)) {
-                vec3 target = vec3(1.0, 0.0, 0.0);
-                // color_out = vec4(smooth_lerp(color_out.xyz, target, vHoverProgress), 1.0);
-                color_out = vec4(target, 1.0);
-            }
-
-            gl_FragColor = color_out;
-        }
-    `;
-
-    const circle_inst: CircleInstance = new CircleInstance(9);
-    const positions: number[] = [
-        100.0, 200.0, 0.0, // index (0-1) = offset, // index (2) = instance index
-        150.0, 50.0, 1.0,
-        350.0, 100.0, 2.0
-    ];
-
-    const radii: number[] = [
-        20.0,
-        15.0,
-        40.0
-    ];
-
-    const gl: WebGL2RenderingContext = canvas.getContext("webgl2")!;
-    const num_instances: number = positions.length / 3;
-    const program: WebGLProgram = init_shader_program(gl, circle_shader_instanced_vs, circle_shader_instanced_fs)!;
-    
-    gl.useProgram(program);
-    
-    const vbo: WebGLBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-    gl.bufferData(gl.ARRAY_BUFFER, circle_inst.data(), gl.STATIC_DRAW);
-    
-    const aVPos = gl.getAttribLocation(program, "aVertexPosition"); 
-
-    gl.vertexAttribPointer(
-        aVPos,
-        2,
-        gl.FLOAT,
-        false,
-        0,
-        0
-    );
-    gl.enableVertexAttribArray(aVPos);
-
-    const offset_buffer: WebGLBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, offset_buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
-
-    const aVOff = gl.getAttribLocation(program, "aVertexOffset");
-
-    gl.vertexAttribPointer(
-        aVOff,
-        3,
-        gl.FLOAT,
-        false,
-        0,
-        0
-    );
-
-    gl.enableVertexAttribArray(aVOff);
-    gl.vertexAttribDivisor(aVOff, 1);
-
-    const radii_buffer: WebGLBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, radii_buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(radii), gl.STATIC_DRAW);
-
-    const aRad = gl.getAttribLocation(program, "aRadius");
-
-    gl.vertexAttribPointer(
-        aRad,
-        1,
-        gl.FLOAT,
-        false,
-        0,
-        0
-    );
-
-    gl.enableVertexAttribArray(aRad);
-    gl.vertexAttribDivisor(aRad, 1);
-
-    let uHPos = gl.getUniformLocation(program, "uHoverID");
-    if (uHPos === null) {
-        console.log("Couldn't find the position of uniform `uHoverID`");
+/** Initializer for `AppData` */
+function init_app(
+    cv: HTMLCanvasElement, data: React.RefObject<AppData | null>, num_circles: number, 
+    radius_over_width_ratios: Interval = { low: 0.025, high: 0.166}
+): void {
+    const context: WebGL2RenderingContext | null = cv.getContext("webgl2");
+    if (context === null) {
+        console.error("Was unable to get context 'webgl2' from the HTMLCanvasElement");
+        return;
     }
 
-    const mouse_pos: Coord2D = new Coord2D();
-    (gl.canvas as HTMLCanvasElement).addEventListener("mousemove", (event: MouseEvent) => {
-        const bb: DOMRect = (gl.canvas as HTMLCanvasElement).getBoundingClientRect();
-        mouse_pos.set_xy(
+    const radius_low: number = cv.width * radius_over_width_ratios.low;
+    const radius_high: number = cv.width * radius_over_width_ratios.high;
+    const radius_range_size: number = radius_high - radius_low;
+    
+    data.current = { 
+        context: context,
+        num_circles: num_circles,
+        circle_instance: new CircleInstance(81),
+        positions: random_coords(num_circles, {low: radius_high, high: cv.width - radius_high},{low: radius_high, high: cv.height - radius_high}).map((c, idx) => [...c.get_xy(), idx]).flat(),
+        radii: new Array(num_circles).fill(0).map(_ => Math.random() * radius_range_size + radius_low),
+        hover_progress: (new Float32Array(num_circles)).fill(0),
+        hov_buffer: 0,
+        uHPos: null,
+        program: null,
+        mouse_pos: new Coord2D(0,0)
+    };
+
+    const mouse_callback = (event: MouseEvent) => {
+        const bb: DOMRect = cv.getBoundingClientRect();
+        data.current!.mouse_pos.set_xy(
             event.clientX - bb.left,
             event.clientY - bb.top
         );
-    });
-
-    // track the 'progress' each circle has made towards their growth target
-    const hover_progress: Float32Array = new Float32Array(radii.length).fill(0);
-    const hover_progress_buffer: WebGLBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, hover_progress_buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, hover_progress, gl.STATIC_DRAW);
-
-    const aHPro = gl.getAttribLocation(program, "aHoverProgress");
-    gl.vertexAttribPointer(
-        aHPro,
-        1,
-        gl.FLOAT,
-        false,
-        0,
-        0
-    );
-
-    gl.enableVertexAttribArray(aHPro);
-    gl.vertexAttribDivisor(aHPro, 1);
-
-    let last_time: number = 0;
-
-    const update = (time: number) => {
-        // update time
-        const dt = (time - last_time) / 16.67;
-        last_time = time;
-
-        // find the circle that we are hovering over (if any)
-        const mouse_pos_local: Coord2D = Coord2D.from_coord(mouse_pos);
-        const id = ((id_in: number | null) => { return !(id_in === null || id_in === -1) ? id_in : -1 })(get_hover_id(mouse_pos_local, positions, radii));
-
-        // if we're hovering over a circle, increase its "hover time"
-        for (let i = 0; i < hover_progress.length; i++) {
-            hover_progress[i] = clamp(0.0, (i == id) ? hover_progress[i] + dt : hover_progress[i] - dt, 1.0);
-        }
-        
-        gl.bindBuffer(gl.ARRAY_BUFFER, hover_progress_buffer);
-        gl.bufferData(gl.ARRAY_BUFFER, hover_progress, gl.STATIC_DRAW); // send current circle hover progress data
-
-        gl.uniform1i(uHPos, id); // send data on the current hovered circle
     }
-    
-    const render = (time: number) => {
-        update(time);
 
-        gl.clearColor(0.0, 0.0, 0.0, 1.0);
-        gl.enable(gl.DEPTH_TEST);
-        gl.clearDepth(1.0);
-        gl.depthFunc(gl.LEQUAL);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-        gl.drawArraysInstanced(gl.TRIANGLE_FAN, 0, circle_inst.num_points(), num_instances);
-        requestAnimationFrame(render);
-    };
-
-    requestAnimationFrame(render);
+    cv.addEventListener("mousemove", mouse_callback);
 }
 
-function useCustom() {
-    const [value, setValue] = React.useState('');
+const glsl = (x: any) => x;
+
+/** Vertex Shader */ 
+const c_shader_instanced_vs: string = glsl`
+    precision lowp float;
+
+    attribute vec2 aVertexPosition;
+    attribute vec3 aVertexOffset;
+    attribute float aRadius;
+    attribute float aHoverProgress;
+
+    uniform lowp int uHoverID;
+
+    varying float vCircleID;
+    varying float vHoverProgress;
+
+    // linear interpolation
+    float lerp(float a, float b, float t) {
+        return (1.0 - t) * a + t * b;
+    }
+
+    float smooth_lerp(float a, float b, float t) {
+        float t3 = t * t * t;
+        t = 3.0 * t3 - 2.0 * t3;
+        return lerp(a, b, t);
+    }
+
+    void main() {
+        const float width = 600.0;
+        const float height = 400.0;
+
+        vCircleID = aVertexOffset.z; // extract the circle ID
+        vHoverProgress = aHoverProgress;
+
+        // we want the hover element to appear "on top"
+        float cur_hovered = float(uHoverID == int(vCircleID)) * -1.0;
+
+        float radius = smooth_lerp(aRadius, aRadius + 5.0, aHoverProgress);
+        float sX = aVertexPosition.x * radius + aVertexOffset.x;
+        float sY = aVertexPosition.y * radius + aVertexOffset.y;
+
+        float nx = sX / width * 2.0 - 1.0;
+        float ny = (height - sY) / height * 2.0 - 1.0;
+
+        gl_Position = vec4(nx, ny, cur_hovered, 1.0);
+    }
+`;
+
+/** Fragment Shader */
+const c_shader_instanced_fs: string = glsl`
+    precision lowp float;
+
+    uniform lowp int uHoverID;
+
+    varying float vCircleID;
+    varying float vHoverProgress;
+
+    vec3 lerp(vec3 a, vec3 b, float t) {
+        return (1.0 - t) * a + t * b;
+    }
+
+    vec3 smooth_lerp(vec3 a, vec3 b, float t) {
+        float t3 = t * t * t;
+        t = 3.0 * t3 - 2.0 * t3;
+        return lerp(a, b, t);
+    }
+
+    void main() {
+        vec4 color_out = vec4(0.0, 1.0, 0.0, 1.0);
+        if (uHoverID == int(vCircleID)) {
+            vec3 target = vec3(1.0, 0.0, 0.0);
+            // color_out = vec4(smooth_lerp(color_out.xyz, target, vHoverProgress), 1.0);
+            color_out = vec4(target, 1.0);
+        }
+
+        gl_FragColor = color_out;
+    }
+`;
+
+/** creates a buffer, fills it with `data` and returns said buffer's id */
+function buffer_init<Buffer extends ArrayBufferView<ArrayBufferLike>>(context: WebGL2RenderingContext, target: GLenum, data: Buffer, usage: GLenum) {
+    const buffer = context.createBuffer();
+    context.bindBuffer(target, buffer);
+    context.bufferData(target, data, usage);
+    return buffer;
+}
+
+/** initializes multiples buffers (with the same target & usage parameters) and returns all their ids */
+function buffer_init_multiple<Buffer extends ArrayBufferView<ArrayBufferLike>>(context: WebGL2RenderingContext, target: GLenum, usage: GLenum, dataset: Buffer[]): WebGLBuffer[] {
+    const buffer_ids: WebGLBuffer[] = new Array(dataset.length);
+    for (let i = 0; i < dataset.length; i++) {
+        buffer_ids[i] = buffer_init(
+            context, 
+            target,
+            dataset[i], 
+            usage
+        );
+    }
+    return buffer_ids;
+}
+
+type AttribData = {
+    attrib_name: string,
+    buffer_id: WebGLBuffer
+    attrib_loc?: GLint | undefined,
+};
+
+/** Sets the vertexAttribPointer given a shader program, and an AttribData field `attrib`.
+ * If `attrib`'s field `attrib.attrib_loc` is **undefined** then the function performs a lookup via
+ * `getAttribLocation()` for the attribute location using `attrib.attrib_name`. If it is defined
+ * then this lookup is not performed. Finally, it enables the vertexAttribArray at 
+ * `attrib.attrib_location`. Note that the bound buffer is set to `attrib.buffer_id` by this
+ * function as well.  */
+function set_attrib_data(context: WebGL2RenderingContext, program: WebGLProgram, attrib: AttribData,
+    size: GLint, type: GLenum, normalized: GLboolean = false, stride: GLsizei = 0, offset: GLintptr = 0
+): AttribData {
+    context.useProgram(program);
+    if (attrib.attrib_loc === undefined) {
+        attrib.attrib_loc = context.getAttribLocation(program, attrib.attrib_name);
+    }
+
+    context.bindBuffer(context.ARRAY_BUFFER, attrib.buffer_id);
+    context.vertexAttribPointer(attrib.attrib_loc, size, type, normalized, stride, offset);
+    context.enableVertexAttribArray(attrib.attrib_loc);
+
+    return attrib;
+}
+
+/** The same as `set_attrib_data()` except it also sets `vertexAttribDivisor` with the `divisor` argument. */
+function set_attrib_data_instanced(context: WebGL2RenderingContext, program: WebGLProgram, attrib: AttribData,
+    size: GLint, type: GLenum, normalized: GLboolean = false, stride: GLsizei = 0, offset: GLintptr = 0, divisor: GLuint = 1
+): AttribData {
+    context.useProgram(program);
+    if (attrib.attrib_loc === undefined) {
+        attrib.attrib_loc = context.getAttribLocation(program, attrib.attrib_name);
+    }
+
+    context.bindBuffer(context.ARRAY_BUFFER, attrib.buffer_id);
+    context.vertexAttribPointer(attrib.attrib_loc, size, type, normalized, stride, offset);
+    context.enableVertexAttribArray(attrib.attrib_loc);
+    context.vertexAttribDivisor(attrib.attrib_loc, divisor);
+
+    return attrib;
+}
+
+/** Update function */
+function app_update(app: AppData, prev_time: DOMHighResTimeStamp, time: DOMHighResTimeStamp): DOMHighResTimeStamp {
+    const gl = app.context;
+    const dt = (time - prev_time) / 16.67;
+
+    // find the circle that we are hovering over (if any)
+    const mouse_pos_local: Coord2D = Coord2D.from_coord(app.mouse_pos);
+    const id = ((id_in: number | null) => { return !(id_in === null || id_in === -1) ? id_in : -1 })(get_hover_id(mouse_pos_local, app.positions, app.radii));
+
+    // if we're hovering over a circle, increase its "hover time"
+    for (let i = 0; i < app.num_circles; i++) {
+        app.hover_progress[i] = clamp(0.0, (i == id) ? app.hover_progress[i] + dt : app.hover_progress[i] - dt, 1.0);
+    }
+
+    gl.useProgram(app.program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, app.hov_buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, app.hover_progress, gl.STATIC_DRAW); // send current circle hover progress data
+    gl.uniform1i(app.uHPos, id); // send data on the current hovered circle
+    return time;
+}
+
+/** Draw function */
+function app_draw(app: AppData): void {
+    const gl = app.context;
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.enable(gl.DEPTH_TEST);
+    gl.clearDepth(1.0);
+    gl.depthFunc(gl.LEQUAL);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.drawArraysInstanced(gl.TRIANGLE_FAN, 0, app.circle_instance.num_points(), app.num_circles);
+}
+
+/** Hook for setting the canvas app */
+function useCircleApp(num_circles: number): CanvasCallback {
+    const app_data = React.useRef<AppData>(null);
+    const canvas_init: CanvasCallback = useCanvasInstantiator([(cv) => init_app(cv, app_data, num_circles)]);
 
     React.useEffect(() => {
-        setValue('updated');
+        const app: AppData = app_data.current!;
+        const gl: WebGL2RenderingContext = app.context;
+        const program: WebGLProgram | null = init_shader_program(gl, c_shader_instanced_vs, c_shader_instanced_fs);
+
+        if (program === null) {
+            console.error("Error occurred during construction of the WebGLProgram.");
+            return;
+        }
+
+        // (gl.canvas as HTMLCanvasElement).addEventListener("mousemove", (event: MouseEvent) => {
+        //     const bb: DOMRect = (gl.canvas as HTMLCanvasElement).getBoundingClientRect();
+        //     app.mouse_pos.set_xy(
+        //         event.clientX - bb.left,
+        //         event.clientY - bb.top
+        //     );
+        // });
+
+        app.program = program;
+        const [cg_buffer, off_buffer, rad_buffer, hov_buffer] = buffer_init_multiple(gl, gl.ARRAY_BUFFER, gl.STATIC_DRAW, [
+                new Float32Array(app.circle_instance.data()),
+                new Float32Array(app.positions),
+                new Float32Array(app.radii),
+                app.hover_progress
+        ]);
+
+        set_attrib_data(gl, app.program, {attrib_name: "aVertexPosition", buffer_id: cg_buffer}, 2, gl.FLOAT);
+        set_attrib_data_instanced(gl, app.program, {attrib_name: "aVertexOffset", buffer_id: off_buffer}, 3, gl.FLOAT);
+        set_attrib_data_instanced(gl, app.program, {attrib_name: "aRadius", buffer_id: rad_buffer}, 1, gl.FLOAT);
+
+        app.hov_buffer = set_attrib_data_instanced(gl, app.program, {attrib_name: "aHoverProgress", buffer_id: hov_buffer}, 1, gl.FLOAT).buffer_id;
+        app.uHPos = gl.getUniformLocation(app.program, "uHoverID");
+
+        if (app.uHPos === null) {
+            console.error("Unable to find location of uniform `uHoverID`...");
+            return;
+        }
+
+        let last_time: DOMHighResTimeStamp = 0;
+        const render_loop: FrameRequestCallback = (time: DOMHighResTimeStamp) => {
+            last_time = app_update(app, last_time, time);
+            app_draw(app);
+            requestAnimationFrame(render_loop);
+        }
+        requestAnimationFrame(render_loop);
     }, []);
 
-    return value;
+    return canvas_init;
 }
 
-function useCanvasRef() {
-    let ref = React.useRef<HTMLCanvasElement>(null);
-
-    React.useEffect(() => {
-        // does work here when the reference is changed?
-    }, []);
-
-    return ref;
-}
-
-function CanvasUserComponent() {
-    let canvas_ref = useCanvasRef();
-    return (
-        <canvas ref={canvas_ref}></canvas>
-    );
-}
-
-export function EnginePage(): React.JSX.Element {
-    let ref = React.useRef<HTMLCanvasElement>(null);
-    let val = useCustom();
-
-    console.log(`hook value: ${val}`);
-
-    React.useEffect(() => {
-        time_based_with_instance_scene(ref.current!);
-    }, []);
-
+/** Engine page component */
+export function EnginePage(cv_shape: {width: number, height: number }): React.JSX.Element {
+    const canvas_app_init: CanvasCallback = useCircleApp(5);
     return (
         <div>
             <p>Hello world</p>
-            <canvas ref={ref} width="600" height="400"></canvas>
+            <canvas ref={canvas_app_init} width={cv_shape.width} height={cv_shape.height}></canvas>
         </div>
     );
 }
