@@ -10,7 +10,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<WelcomePage/>}></Route>
-        <Route path="/engine" element={<EnginePage/>}></Route>
+        <Route path="/engine" element={<EnginePage width={600} height={400}/>}></Route>
       </Routes>
     </BrowserRouter>
   );
