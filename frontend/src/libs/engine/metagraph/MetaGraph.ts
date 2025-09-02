@@ -67,11 +67,11 @@ export class MetaGraph<N,E> implements IndexedGraph<N,E> {
         return this.topology.edge_weight(e);
     }
 
-    public outgoing(n: node_idx_t): IndexedNeighborhood<E> {
+    public outgoing(n: node_idx_t): IndexedNeighborhood {
         return this.topology.outgoing(n);
     }
 
-    public incoming(n: node_idx_t): IndexedNeighborhood<E> {
+    public incoming(n: node_idx_t): IndexedNeighborhood {
         return this.topology.incoming(n);
     }
 
