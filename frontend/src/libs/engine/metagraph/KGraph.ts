@@ -19,7 +19,6 @@ type TNodeEnum = EnumLike<typeof NodeEnum>;
 // Constants
 const MAX_INDEX: number = Number.MAX_SAFE_INTEGER;
 
-
 // Node class
 export class kNode<N> {
     weight: N;
@@ -287,6 +286,10 @@ export class kGraph<N,E> implements IndexedGraph<N,E> {
             return this.dir;
         }
 
+        empty(): boolean {
+            return this.idx === MAX_INDEX;
+        }
+
         /** Returns the node direction of this EdgeList. */
         node_direction(): TNodeEnum {
             return this.node_dir;
@@ -314,13 +317,17 @@ export class kGraph<N,E> implements IndexedGraph<N,E> {
             }
         }
 
+        public front_edge(): edge_idx_t {
+            return this.idx;
+        }
+
         /** Shorthand for `[Symbol.iterator]()` */
-        iter(): Iterator<EdgeData> {
+        public iter(): Iterator<EdgeData> {
             return this[Symbol.iterator]();
         }
 
         /** Returns whether a node in this neighborhood has edge_idx_t */
-        contains(n: node_idx_t): boolean {
+        public contains(n: node_idx_t): boolean {
             for (let value of this) {
                 if (value.node_idx === n) {
                     return true;
@@ -330,11 +337,11 @@ export class kGraph<N,E> implements IndexedGraph<N,E> {
             return false;
         }
 
-        /** Returns the index of the first node satisfying `predicate` */
-        find_if(predicate: (n: node_idx_t, e: edge_idx_t, dir: TEdgeEnum) => boolean): node_idx_t | null {
+        /** Returns the index of the first edge_idx satisfying `predicate` */
+        public find_if(predicate: (n: node_idx_t, e: edge_idx_t, dir: TEdgeEnum) => boolean): EdgeData | null {
             for (let value of this) {
                 if (predicate(value.node_idx, value.edge_idx, this.dir)) {
-                    return value.node_idx;
+                    return value;
                 }
             }
             return null;
@@ -471,9 +478,6 @@ export class kGraph<N,E> implements IndexedGraph<N,E> {
         return this;
     }
 
-    // into_view(): IdentityView<N,E> {} ?
-    // big question is how do views "compose" into each other?
-
     /** Return whether  */
     public contains(n: node_idx_t): boolean {
         return n < this.nodes.length;
@@ -481,7 +485,7 @@ export class kGraph<N,E> implements IndexedGraph<N,E> {
 
     /** Returns true if `e`'s next edge in the direction `dir` is `f`.  */
     private edge_is_prior(e: edge_idx_t, f: edge_idx_t, dir: TEdgeEnum): boolean {
-        return this.edges[e].index_edge_link(dir) === f;
+        return this.edges[e].index_edge_link(dir) === f || e === f;
     }
 
     /** Removes edge `e` from node `parent`'s Edge List in the direction of `branch`. The return 
@@ -489,15 +493,21 @@ export class kGraph<N,E> implements IndexedGraph<N,E> {
      * if the operation was unsuccessful. */
     private disown(parent: node_idx_t, e: edge_idx_t, branch: TEdgeEnum): boolean {
         const get_edge_list = (branch === EdgeEnum.OUTGOING) ? this.outgoing : this.incoming;
-        const younger_kin: edge_idx_t | null = get_edge_list(e).find_if((_, cur_e, dir) => this.edge_is_prior(cur_e, e, dir));
+        const younger_kin: EdgeData | null = get_edge_list
+            .call(this, parent)
+            .find_if((_, cur_e, dir) => this.edge_is_prior(cur_e, e, dir));
 
         let was_disowned = false;
-        if (younger_kin === e) {
-            this.nodes[parent].index_and_update_edge_link(branch, this.edges[e].index_edge_link(branch));
-            was_disowned = true;
-        } else if (younger_kin !== e) {
-            this.edges[younger_kin!].index_and_update_edge_link(branch, this.edges[e].index_edge_link(branch));
-            was_disowned = true;
+        if (younger_kin !== null) {
+            if (younger_kin.edge_idx === e) {
+                this.nodes[parent]
+                    .index_and_update_edge_link(branch, this.edges[e].index_edge_link(branch));
+                was_disowned = true;
+            } else {
+                this.edges[younger_kin.edge_idx]
+                    .index_and_update_edge_link(branch, this.edges[e].index_edge_link(branch));
+                was_disowned = true;
+            }
         }
 
         return was_disowned;
@@ -507,20 +517,28 @@ export class kGraph<N,E> implements IndexedGraph<N,E> {
      * edge_idx_t `imposter`. */
     private rebrand(parent: node_idx_t, e: edge_idx_t, imposter: edge_idx_t, branch: TEdgeEnum): boolean {
         const get_edge_list = (branch === EdgeEnum.OUTGOING) ? this.outgoing : this.incoming;
-        const younger_kin: edge_idx_t | null = get_edge_list(e).find_if((_, cur_e, dir) => this.edge_is_prior(cur_e, e, dir));
+        const younger_kin: EdgeData | null = get_edge_list
+            .call(this, parent)
+            .find_if((_, cur_e, dir) => this.edge_is_prior(cur_e, e, dir));
 
         let was_replaced = false;
-        if (younger_kin === e) {
-            this.nodes[parent].index_and_update_edge_link(branch, imposter);
-            was_replaced = true;
-        } else if (younger_kin !== e) {
-            this.edges[younger_kin!].index_and_update_edge_link(branch, imposter);
-            was_replaced = true;
+        if (younger_kin !== null) {
+            if (younger_kin.edge_idx === e) {
+                this.nodes[parent]
+                    .index_and_update_edge_link(branch, imposter);
+                was_replaced = true;
+            } else {
+                this.edges[younger_kin.edge_idx]
+                    .index_and_update_edge_link(branch, imposter);
+                was_replaced = true;
+            }
         }
 
         return was_replaced;
     }
 
+    /** Make an edge disowned by both of its parent nodes in the incoming
+     * and outgoing direction. */
     private make_disowned(e: edge_idx_t): kGraph<N,E> {
         const e_parent = this.edge_nodes(e);
         this.disown(e_parent.from_node, e, EdgeEnum.OUTGOING);
@@ -528,7 +546,9 @@ export class kGraph<N,E> implements IndexedGraph<N,E> {
         return this;
     }
 
-    private give_rebrand(e: edge_idx_t, substitute: edge_idx_t): kGraph<N,E> {
+    /** Make an edge "rebranded" (i.e. change the edge index associated with it)
+     * by both of its parent nodes in the incoming and outgoing direction */
+    private make_rebranded(e: edge_idx_t, substitute: edge_idx_t): kGraph<N,E> {
         const e_parent = this.edge_nodes(e);
         this.rebrand(e_parent.from_node, e, substitute, EdgeEnum.OUTGOING);
         this.rebrand(e_parent.to_node, e, substitute, EdgeEnum.INCOMING);
@@ -544,10 +564,9 @@ export class kGraph<N,E> implements IndexedGraph<N,E> {
     /** Removes edge e from this graph */
     public remove_edge(e: edge_idx_t) {
         this.make_disowned(e);
-
         const l: edge_idx_t = this.edges.length - 1;
         if (e != l) {
-            this.give_rebrand(l, e);
+            this.make_rebranded(l, e);
             this.swap_edge_indices(l, e);
         }
 
