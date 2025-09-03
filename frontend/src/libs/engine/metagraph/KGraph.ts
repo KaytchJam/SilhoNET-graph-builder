@@ -499,14 +499,13 @@ export class kGraph<N,E> implements IndexedGraph<N,E> {
 
         let was_disowned = false;
         if (younger_kin !== null) {
+            was_disowned = true;
             if (younger_kin.edge_idx === e) {
                 this.nodes[parent]
                     .index_and_update_edge_link(branch, this.edges[e].index_edge_link(branch));
-                was_disowned = true;
             } else {
                 this.edges[younger_kin.edge_idx]
                     .index_and_update_edge_link(branch, this.edges[e].index_edge_link(branch));
-                was_disowned = true;
             }
         }
 
@@ -523,14 +522,13 @@ export class kGraph<N,E> implements IndexedGraph<N,E> {
 
         let was_replaced = false;
         if (younger_kin !== null) {
+            was_replaced = true;
             if (younger_kin.edge_idx === e) {
                 this.nodes[parent]
                     .index_and_update_edge_link(branch, imposter);
-                was_replaced = true;
             } else {
                 this.edges[younger_kin.edge_idx]
                     .index_and_update_edge_link(branch, imposter);
-                was_replaced = true;
             }
         }
 
@@ -555,21 +553,85 @@ export class kGraph<N,E> implements IndexedGraph<N,E> {
         return this;
     }
 
-    private swap_edge_indices(e1: edge_idx_t, e2: edge_idx_t) {
-        const temp = this.edges[e1];
-        this.edges[e1] = this.edges[e2];
-        this.edges[e2] = temp;
+    private static swap_indices<C extends Array<any>>(container: C, i1: number, i2: number) {
+        const temp = container[i1];
+        container[i1] = container[i2];
+        container[i2] = temp;
     }
 
-    /** Removes edge e from this graph */
+    /** Removes edge `e` from this graph */
     public remove_edge(e: edge_idx_t) {
         this.make_disowned(e);
         const l: edge_idx_t = this.edges.length - 1;
         if (e != l) {
             this.make_rebranded(l, e);
-            this.swap_edge_indices(l, e);
+            kGraph.swap_indices(this.edges, l, e);
         }
 
         this.edges.pop();
+    }
+
+    private disown_edges(parent: node_idx_t) {
+        // Outgoing direction
+        let edge_neighborhood = this.outgoing(parent);
+        while (!edge_neighborhood.empty()) {
+            const e: edge_idx_t = edge_neighborhood.front_edge();
+            const next_idx: edge_idx_t = this.edges[e].next.outgoing;
+
+            this.disown(this.edges[e].nodes.to_node, e, EdgeEnum.INCOMING);
+            const l: edge_idx_t = this.edges.length - 1;
+            if (e != l) {
+                this.make_rebranded(l, e);
+                kGraph.swap_indices(this.edges, l, e);
+            }
+
+            this.nodes[parent].next.outgoing = next_idx;
+            this.edges.pop();
+            edge_neighborhood = this.outgoing(parent);
+        }
+
+        // Incoming direction
+        edge_neighborhood = this.incoming(parent);
+        while (!edge_neighborhood.empty()) {
+            const e: edge_idx_t = edge_neighborhood.front_edge();
+            const next_idx: edge_idx_t = this.edges[e].next.incoming;
+
+            this.disown(this.edges[e].nodes.from_node, e, EdgeEnum.OUTGOING);
+            const l: edge_idx_t = this.edges.length - 1;
+            if (e != l) {
+                this.make_rebranded(l, e);
+                kGraph.swap_indices(this.edges, l, e);
+            }
+
+            this.nodes[parent].next.incoming = next_idx;
+            this.edges.pop();
+            edge_neighborhood = this.incoming(parent);
+        }
+    }
+
+    /** Associate node `e` with a new index `imposter`. All edges that reference node `e` as
+     * and index in field `node` have `node.to` or `node.from` set to `imposter`. */
+    private rebrand_node(e: edge_idx_t, imposter: edge_idx_t) {
+        let neighborhood = this.outgoing(e);
+        for (let edge_data of neighborhood) {
+            const e: edge_idx_t = edge_data.edge_idx;
+            this.edges[e].nodes.from_node = imposter;
+        }
+
+        neighborhood = this.incoming(e);
+        for (let edge_data of neighborhood) {
+            const e: edge_idx_t = edge_data.edge_idx;
+            this.edges[e].nodes.to_node = imposter;
+        }
+    }
+
+    public remove_node(n: node_idx_t) {
+        this.disown_edges(n);
+        const f: node_idx_t = this.nodes.length - 1;
+        if (n != f) {
+            this.rebrand_node(f, n);
+            kGraph.swap_indices(this.nodes, f, n);
+        }
+        this.nodes.pop();
     }
 };
