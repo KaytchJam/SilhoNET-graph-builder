@@ -1,6 +1,5 @@
 import type { EnumLike } from "../../../utils/types/EnumLike";
 
-
 // Index types
 export type node_idx_t = number;
 export type edge_idx_t = number;
@@ -99,6 +98,9 @@ export interface IndexedNeighborhood {
 export interface IndexedGraph<N,E> {
     add_node(w: N): node_idx_t;
     add_edge(a: node_idx_t, b: node_idx_t, w: E): edge_idx_t;
+
+    remove_node(n: node_idx_t): void;
+    remove_edge(e: edge_idx_t): void;
 
     node_weight(n: node_idx_t): N;
     edge_weight(e: edge_idx_t): E;
@@ -560,18 +562,19 @@ export class kGraph<N,E> implements IndexedGraph<N,E> {
     }
 
     /** Removes edge `e` from this graph */
-    public remove_edge(e: edge_idx_t) {
+    public remove_edge(e: edge_idx_t): void {
         this.make_disowned(e);
         const l: edge_idx_t = this.edges.length - 1;
-        if (e != l) {
+        if (e !== l) {
             this.make_rebranded(l, e);
             kGraph.swap_indices(this.edges, l, e);
         }
 
         this.edges.pop();
+        // return this;
     }
 
-    private disown_edges(parent: node_idx_t) {
+    private disown_edges(parent: node_idx_t): kGraph<N,E> {
         // Outgoing direction
         let edge_neighborhood = this.outgoing(parent);
         while (!edge_neighborhood.empty()) {
@@ -580,7 +583,7 @@ export class kGraph<N,E> implements IndexedGraph<N,E> {
 
             this.disown(this.edges[e].nodes.to_node, e, EdgeEnum.INCOMING);
             const l: edge_idx_t = this.edges.length - 1;
-            if (e != l) {
+            if (e !== l) {
                 this.make_rebranded(l, e);
                 kGraph.swap_indices(this.edges, l, e);
             }
@@ -598,7 +601,7 @@ export class kGraph<N,E> implements IndexedGraph<N,E> {
 
             this.disown(this.edges[e].nodes.from_node, e, EdgeEnum.OUTGOING);
             const l: edge_idx_t = this.edges.length - 1;
-            if (e != l) {
+            if (e !== l) {
                 this.make_rebranded(l, e);
                 kGraph.swap_indices(this.edges, l, e);
             }
@@ -607,11 +610,13 @@ export class kGraph<N,E> implements IndexedGraph<N,E> {
             this.edges.pop();
             edge_neighborhood = this.incoming(parent);
         }
+
+        return this;
     }
 
     /** Associate node `e` with a new index `imposter`. All edges that reference node `e` as
      * and index in field `node` have `node.to` or `node.from` set to `imposter`. */
-    private rebrand_node(e: edge_idx_t, imposter: edge_idx_t) {
+    private rebrand_node(e: edge_idx_t, imposter: edge_idx_t): kGraph<N,E>  {
         let neighborhood = this.outgoing(e);
         for (let edge_data of neighborhood) {
             const e: edge_idx_t = edge_data.edge_idx;
@@ -623,15 +628,18 @@ export class kGraph<N,E> implements IndexedGraph<N,E> {
             const e: edge_idx_t = edge_data.edge_idx;
             this.edges[e].nodes.to_node = imposter;
         }
+
+        return this;
     }
 
     public remove_node(n: node_idx_t) {
         this.disown_edges(n);
         const f: node_idx_t = this.nodes.length - 1;
-        if (n != f) {
+        if (n !== f) {
             this.rebrand_node(f, n);
             kGraph.swap_indices(this.nodes, f, n);
         }
         this.nodes.pop();
+        // return this;
     }
 };
