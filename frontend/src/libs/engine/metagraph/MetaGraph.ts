@@ -139,6 +139,25 @@ export class MetaGraph<N,E> implements IndexedGraph<N,E> {
         attr_values[node_index] = value;
         return this;
     }
+
+    /** Will likely need to be reimplemented latter if we add node attributes, but atm not an issue */
+    public remove_edge(e: edge_idx_t): void {
+        this.topology.remove_edge(e);
+    }
+
+    /** Removes the node from the graph along with its associated attributes in `attribute_map`. */
+    public remove_node(n: node_idx_t): void {
+        const swap_target: node_idx_t = this.topology.num_nodes() - 1;
+        if (swap_target !== n) {
+            for (let attribute of this.iter_keys()) {
+                const attr_list = this.attribute_map.get(attribute)!;
+                attr_list[n] = attr_list[swap_target];
+                attr_list.pop();
+            }
+        }
+
+        this.topology.remove_node(n);
+    }
 }
 
 /** Foo */
