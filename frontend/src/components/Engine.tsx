@@ -143,6 +143,8 @@ type AppData = {
     line_positions: number[],
     line_edges: number[],
     line_program: WebGLProgram | null,
+    line_hover_progress: Float32Array,
+    line_hov_buffer: WebGLBuffer,
     
     mouse_pos: Coord2D,
 }
@@ -181,8 +183,12 @@ function init_app(
         num_lines: num_lines,
         line_program: null,
         line_positions: random_coords(num_lines * 2, {low: 20, high: cv.width - 20}, {low: 20, high: cv.height - 20}).map((c) => c.get_xy()).flat(),
-        line_edges: [ 0, 1, 2, 3], //random_coords(num_lines, {low: 0, high: num_lines}, {low: 0, high: num_lines}).map((c) => c.get_xy()).flat().map((v) => Math.floor(v)),
+        line_edges: [0, 1, 2, 3], //random_coords(num_lines, {low: 0, high: num_lines}, {low: 0, high: num_lines}).map((c) => c.get_xy()).flat().map((v) => Math.floor(v)),
         line_instance: new LineInstance(),
+        line_hover_progress: (new Float32Array(2)).fill(0),
+        line_hov_buffer: 0,
+
+        // MOUSE COORDS
         mouse_pos: new Coord2D(0,0)
     };
 
@@ -277,10 +283,11 @@ const c_shader_instanced_fs: string = glsl`
 `;
 
 const l_shader_instanced_vs = glsl`
-precision lowp float;
+    precision lowp float;
 
-attribute vec3 aVertexPosition;
-attribute vec4 aEdgeOffsets;
+    attribute vec3 aVertexPosition;
+    attribute vec4 aEdgeOffsets;
+    attribute float aHoverProgress;
 
     /** For normal calculation */
     vec3 Z = vec3(0.0, 0.0, -1.0);
@@ -289,6 +296,16 @@ attribute vec4 aEdgeOffsets;
     /** Calculate the normal of our line's direction  */
     vec2 calculate_normal(vec2 dir) {
         return cross(vec3(dir,0.0), Z).xy;
+    }
+
+    float lerpf(float a, float b, float t) {
+        return (1.0 - t) * a + t * b;
+    }
+    
+    float smooth_lerpf(float a, float b, float t) {
+        float t3 = t * t * t;
+        t = 3.0 * t3 - 2.0 * t3;
+        return lerpf(a, b, t);
     }
 
     void main() {
@@ -313,11 +330,13 @@ attribute vec4 aEdgeOffsets;
             offset = to;
         }
 
-        gl_Position = vec4(offset + thickness * normal, 0.0, 1.0);
+        float thickness_out = smooth_lerpf(thickness, thickness + 5.0, aHoverProgress);
+
+        gl_Position = vec4(offset + thickness_out * normal, 0.0, 1.0);
         gl_Position.x = gl_Position.x / width * 2.0 - 1.0;
         gl_Position.y = (height - gl_Position.y) / height * 2.0 - 1.0;
     }
-    `;
+`;
     
 const l_shader_instanced_fs = glsl`
 precision lowp float;
@@ -409,16 +428,22 @@ function app_update(app: AppData, prev_time: DOMHighResTimeStamp, time: DOMHighR
     for (let i = 0; i < app.num_circles; i++) {
         app.hover_progress[i] = clamp(0.0, (i == id) ? app.hover_progress[i] + dt : app.hover_progress[i] - dt, 1.0);
     }
-    
-    if (global_count < COUNT_MAX) {
-        const hover_id: number | null = get_line_hover_id(mouse_pos_local, app.line_positions, app.line_edges, 5);
-        console.log(global_count);
-        if (hover_id !== null) {
-            console.log(`Hovering over edge: [${hover_id}] -> (${app.line_edges[hover_id * 2]},${hover_id * 2 + 1})`);
-        } else {
-            console.log("Hovering over edge: [NULL]");
-        }
+
+    const line_id: number | null = get_line_hover_id(mouse_pos_local, app.line_positions, app.line_edges, 5);
+    for (let i = 0; i < app.line_edges.length / 2; i++) {
+        app.line_hover_progress[i] = clamp(0.0, (line_id !== null && i == line_id) ? app.line_hover_progress[i] + dt : app.line_hover_progress[i] - dt, 1.0);
     }
+    
+    
+    // if (global_count < COUNT_MAX) {
+    //     const hover_id: number | null = get_line_hover_id(mouse_pos_local, app.line_positions, app.line_edges, 5);
+    //     console.log(global_count);
+    //     if (hover_id !== null) {
+    //         console.log(`Hovering over edge: [${hover_id}] -> (${app.line_edges[hover_id * 2]},${hover_id * 2 + 1})`);
+    //     } else {
+    //         console.log("Hovering over edge: [NULL]");
+    //     }
+    // }
 
     global_count = Math.min(COUNT_MAX, global_count +1);
 
@@ -427,6 +452,12 @@ function app_update(app: AppData, prev_time: DOMHighResTimeStamp, time: DOMHighR
     gl.bindBuffer(gl.ARRAY_BUFFER, app.hov_buffer);
     gl.bufferData(gl.ARRAY_BUFFER, app.hover_progress, gl.STATIC_DRAW); // send current circle hover progress data
     gl.uniform1i(app.uHPos, id); // send data on the current hovered circle
+
+    gl.bindVertexArray(app.line_vao);
+    gl.useProgram(app.line_program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, app.line_hov_buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, app.line_hover_progress, gl.STATIC_DRAW);
+
     return time;
 }
 
@@ -503,9 +534,13 @@ function init_line_vao_data(app: AppData): WebGLVertexArrayObject {
     
     const li_buffer = buffer_init(gl, gl.ARRAY_BUFFER, app.line_instance.data(), gl.STATIC_DRAW);
     const edge_pos_buffer = buffer_init(gl, gl.ARRAY_BUFFER, new Float32Array(edge_positions), gl.STATIC_DRAW);
+    const line_hov_buffer = buffer_init(gl, gl.ARRAY_BUFFER, app.line_hover_progress, gl.STATIC_DRAW);
+
     set_attrib_data(gl, program, {attrib_name: "aVertexPosition", buffer_id: li_buffer}, 3, gl.FLOAT);
     set_attrib_data_instanced(gl, program, {attrib_name: "aEdgeOffsets", buffer_id: edge_pos_buffer}, 4, gl.FLOAT);
+    set_attrib_data_instanced(gl, program, {attrib_name: "aHoverProgress", buffer_id: line_hov_buffer}, 1, gl.FLOAT);
 
+    app.line_hov_buffer = line_hov_buffer;
     return line_vao;
 }
 
