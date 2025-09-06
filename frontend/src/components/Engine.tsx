@@ -4,6 +4,7 @@ import { init_shader_program } from "../utils/webgl/shader_funcs"
 import { Coord2D } from "../libs/engine/GraphEngine";
 import { ImplPositionable } from "../utils/types/Positionable";
 import { LineInstance } from "../libs/engine/gui/Line";
+import { vec3, mat3 } from "gl-matrix"
 
 /** In actuality this function will be located in the GraphEngine */
 function get_hover_id(mouse_pos: Coord2D, positions: number[], radii: number[]): number | null {
@@ -26,6 +27,62 @@ function get_hover_id(mouse_pos: Coord2D, positions: number[], radii: number[]):
     }
 
     return closest_id;
+}
+
+function get_line_hover_id(mouse_pos: Coord2D, line_positions: number[], edges: number[], thickness: number): number | null {
+    const MOUSE_VEC: vec3 = new Float32Array([...mouse_pos.get_xy(),1.0]);
+    const Z: vec3 = new Float32Array([0.0, 0.0, -1.0]);
+
+    let dir: vec3 = new Float32Array(3);
+    let normal: vec3 = new Float32Array(3);
+    let transform: mat3 = new Float32Array(9);
+    let mouse_local: vec3 = new Float32Array(3);
+
+    console.log("mouse coods: ", [...MOUSE_VEC]);
+    console.log("positions: ", line_positions);
+
+    for (let i = 0; i < edges.length; i += 2) {
+        const start_pos_idx: number = edges[i] * 2;
+        const end_pos_idx: number = edges[i+1] * 2;
+
+        dir[0] = line_positions[end_pos_idx] - line_positions[start_pos_idx];
+        dir[1] = line_positions[end_pos_idx + 1] - line_positions[start_pos_idx + 1];
+        dir[2] = 0.0;
+
+        console.log("dir (pre-normalization): ", dir);
+        
+        const length: number = vec3.length(dir);
+        dir = vec3.normalize(dir, dir);
+        normal = vec3.cross(normal, dir, Z);
+        
+        console.log("dir (post-normalization): ", dir);
+        console.log("normal: ", normal);
+
+        transform[0] = dir[0];
+        transform[1] = dir[1];
+        transform[2] = 0.0;
+
+        transform[3] = normal[0];
+        transform[4] = normal[1];
+        transform[5] = 0.0;
+
+        transform[6] = line_positions[start_pos_idx];
+        transform[7] = line_positions[start_pos_idx + 1];
+        transform[8] = 1.0;
+
+        console.log("transform: ", transform);
+
+        transform = mat3.invert(transform, transform);
+        mouse_local = vec3.transformMat3(mouse_local, MOUSE_VEC, transform);
+
+        console.log(`mouse local (edge ${i / 2}) = (${mouse_local[0]},${mouse_local[1]},${mouse_local[2]}`);
+
+        if ((0.0 <= mouse_local[0] && mouse_local[0] <= length) && (-thickness <= mouse_local[1] && mouse_local[1] <= thickness)) {
+            return i / 2;
+        }
+    }
+
+    return null;
 }
 
 /** Bounds a number `value` between thresholds `lower` and `upper` */
@@ -65,39 +122,29 @@ function random_coords(n: number, x_range: Interval, y_range: Interval): Coord2D
 //     return colors;
 // }
 
-type CanvasCallback = (cv: HTMLCanvasElement) => void;
-
-/** Hook for initializing the canvas & all structures dependent on its existence */
-function useCanvasInstantiator(callbacks?: CanvasCallback[] | undefined): CanvasCallback {
-    const setRef = React.useCallback((node: HTMLCanvasElement | null) => {
-        if (node) {
-            callbacks?.forEach((cb) => cb(node));
-        }
-    }, [callbacks]);
-    return setRef;
-}
 
 /** Holds the state for our App --- very messy lol */
 type AppData = {
     context: WebGL2RenderingContext,
-
+    
     circle_vao: WebGLVertexArrayObject;
     num_circles: number
     circle_instance: CircleInstance
     positions: number[],
     radii: number[],
     hover_progress: Float32Array,
-    mouse_pos: Coord2D,
     uHPos: WebGLUniformLocation | null,
     hov_buffer: WebGLBuffer,
     program: WebGLProgram | null
-
+    
     line_vao: WebGLVertexArrayObject,
     num_lines: number,
     line_instance: LineInstance,
     line_positions: number[],
     line_edges: number[],
     line_program: WebGLProgram | null,
+    
+    mouse_pos: Coord2D,
 }
 
 /** Initializer for `AppData` */
@@ -110,14 +157,14 @@ function init_app(
         console.error("Was unable to get context 'webgl2' from the HTMLCanvasElement");
         return;
     }
-
+    
     const radius_low: number = cv.width * radius_over_width_ratios.low;
     const radius_high: number = cv.width * radius_over_width_ratios.high;
     const radius_range_size: number = radius_high - radius_low;
     
     data.current = { 
         context: context,
-
+        
         // CIRCLE RENDERING (COULD HONESTLY BREAK THESE DOWN INTO TWO SEPERATE CLASSES NGL)
         circle_vao: 0,
         num_circles: num_circles,
@@ -128,13 +175,13 @@ function init_app(
         hov_buffer: 0,
         uHPos: null,
         program: null,
-
+        
         // LINE RENDERING
         line_vao: 0,
         num_lines: num_lines,
         line_program: null,
-        line_positions: random_coords(num_lines, {low: 20, high: cv.width - 20}, {low: 20, high: cv.height - 20}).map((c) => c.get_xy()).flat(),
-        line_edges: random_coords(num_lines, {low: 0, high: num_lines}, {low: 0, high: num_lines}).map((c) => c.get_xy()).flat().map((v) => Math.floor(v)),
+        line_positions: random_coords(num_lines * 2, {low: 20, high: cv.width - 20}, {low: 20, high: cv.height - 20}).map((c) => c.get_xy()).flat(),
+        line_edges: [0,1], //random_coords(num_lines, {low: 0, high: num_lines}, {low: 0, high: num_lines}).map((c) => c.get_xy()).flat().map((v) => Math.floor(v)),
         line_instance: new LineInstance(),
         mouse_pos: new Coord2D(0,0)
     };
@@ -146,7 +193,7 @@ function init_app(
             event.clientY - bb.top
         );
     }
-
+    
     cv.addEventListener("mousemove", mouse_callback);
 }
 
@@ -154,18 +201,18 @@ const glsl = (x: any) => x;
 
 /** Vertex Shader */ 
 const c_shader_instanced_vs: string = glsl`
-    precision lowp float;
+precision lowp float;
 
     attribute vec2 aVertexPosition;
     attribute vec3 aVertexOffset;
     attribute float aRadius;
     attribute float aHoverProgress;
-
+    
     uniform lowp int uHoverID;
 
     varying float vCircleID;
     varying float vHoverProgress;
-
+    
     // linear interpolation
     float lerp(float a, float b, float t) {
         return (1.0 - t) * a + t * b;
@@ -176,24 +223,24 @@ const c_shader_instanced_vs: string = glsl`
         t = 3.0 * t3 - 2.0 * t3;
         return lerp(a, b, t);
     }
-
+    
     void main() {
         const float width = 600.0;
         const float height = 400.0;
 
         vCircleID = aVertexOffset.z; // extract the circle ID
         vHoverProgress = aHoverProgress;
-
+        
         // we want the hover element to appear "on top"
         float cur_hovered = float(uHoverID == int(vCircleID)) * -1.0;
-
+        
         float radius = smooth_lerp(aRadius, aRadius + 5.0, aHoverProgress);
         float sX = aVertexPosition.x * radius + aVertexOffset.x;
         float sY = aVertexPosition.y * radius + aVertexOffset.y;
-
+        
         float nx = sX / width * 2.0 - 1.0;
         float ny = (height - sY) / height * 2.0 - 1.0;
-
+        
         gl_Position = vec4(nx, ny, cur_hovered, 1.0);
     }
 `;
@@ -201,22 +248,22 @@ const c_shader_instanced_vs: string = glsl`
 /** Fragment Shader */
 const c_shader_instanced_fs: string = glsl`
     precision lowp float;
-
+    
     uniform lowp int uHoverID;
-
+    
     varying float vCircleID;
     varying float vHoverProgress;
-
+    
     vec3 lerp(vec3 a, vec3 b, float t) {
         return (1.0 - t) * a + t * b;
     }
-
+    
     vec3 smooth_lerp(vec3 a, vec3 b, float t) {
         float t3 = t * t * t;
         t = 3.0 * t3 - 2.0 * t3;
         return lerp(a, b, t);
     }
-
+    
     void main() {
         vec4 color_out = vec4(0.0, 1.0, 0.0, 1.0);
         if (uHoverID == int(vCircleID)) {
@@ -230,15 +277,15 @@ const c_shader_instanced_fs: string = glsl`
 `;
 
 const l_shader_instanced_vs = glsl`
-    precision lowp float;
+precision lowp float;
 
-    attribute vec3 aVertexPosition;
-    attribute vec4 aEdgeOffsets;
+attribute vec3 aVertexPosition;
+attribute vec4 aEdgeOffsets;
 
     /** For normal calculation */
     vec3 Z = vec3(0.0, 0.0, -1.0);
     float thickness = 5.0;
-
+    
     /** Calculate the normal of our line's direction  */
     vec2 calculate_normal(vec2 dir) {
         return cross(vec3(dir,0.0), Z).xy;
@@ -247,7 +294,7 @@ const l_shader_instanced_vs = glsl`
     void main() {
         const float width = 600.0;
         const float height = 400.0;
-
+        
         int index = int(aVertexPosition.z);
         vec2 from = aEdgeOffsets.xy;
         vec2 to = aEdgeOffsets.zw;
@@ -259,7 +306,7 @@ const l_shader_instanced_vs = glsl`
         if (index == 0 || index == 2) {
             normal = -1.0 * normal;
         }
-
+        
         // (INDEX < 2) -> "FROM" POINT
         vec2 offset = from;
         if (index >= 2) {
@@ -270,18 +317,18 @@ const l_shader_instanced_vs = glsl`
         gl_Position.x = gl_Position.x / width * 2.0 - 1.0;
         gl_Position.y = (height - gl_Position.y) / height * 2.0 - 1.0;
     }
-`;
-
+    `;
+    
 const l_shader_instanced_fs = glsl`
-    precision lowp float;
+precision lowp float;
 
-    void main() {
+void main() {
         gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
     }
-`;
-
-/** creates a buffer, fills it with `data` and returns said buffer's id */
-function buffer_init<Buffer extends ArrayBufferView<ArrayBufferLike>>(context: WebGL2RenderingContext, target: GLenum, data: Buffer, usage: GLenum) {
+    `;
+    
+    /** creates a buffer, fills it with `data` and returns said buffer's id */
+    function buffer_init<Buffer extends ArrayBufferView<ArrayBufferLike>>(context: WebGL2RenderingContext, target: GLenum, data: Buffer, usage: GLenum) {
     const buffer = context.createBuffer();
     context.bindBuffer(target, buffer);
     context.bufferData(target, data, usage);
@@ -337,28 +384,43 @@ function set_attrib_data_instanced(context: WebGL2RenderingContext, program: Web
     if (attrib.attrib_loc === undefined) {
         attrib.attrib_loc = context.getAttribLocation(program, attrib.attrib_name);
     }
-
+    
     context.bindBuffer(context.ARRAY_BUFFER, attrib.buffer_id);
     context.vertexAttribPointer(attrib.attrib_loc, size, type, normalized, stride, offset);
     context.enableVertexAttribArray(attrib.attrib_loc);
     context.vertexAttribDivisor(attrib.attrib_loc, divisor);
-
+    
     return attrib;
 }
+
+let global_count = 0;
+const COUNT_MAX: number = 1000;
 
 /** Update function */
 function app_update(app: AppData, prev_time: DOMHighResTimeStamp, time: DOMHighResTimeStamp): DOMHighResTimeStamp {
     const gl = app.context;
     const dt = (time - prev_time) / 16.67;
-
+    
     // find the circle that we are hovering over (if any)
     const mouse_pos_local: Coord2D = Coord2D.from_coord(app.mouse_pos);
     const id = ((id_in: number | null) => { return !(id_in === null || id_in === -1) ? id_in : -1 })(get_hover_id(mouse_pos_local, app.positions, app.radii));
-
+    
     // if we're hovering over a circle, increase its "hover time"
     for (let i = 0; i < app.num_circles; i++) {
         app.hover_progress[i] = clamp(0.0, (i == id) ? app.hover_progress[i] + dt : app.hover_progress[i] - dt, 1.0);
     }
+    
+    if (global_count < COUNT_MAX) {
+        const hover_id: number | null = get_line_hover_id(mouse_pos_local, app.line_positions, app.line_edges, 5);
+        console.log(global_count);
+        if (hover_id !== null) {
+            console.log(`Hovering over edge: [${hover_id}] -> (${app.line_edges[hover_id * 2]},${hover_id * 2 + 1})`);
+        } else {
+            console.log("Hovering over edge: [NULL]");
+        }
+    }
+
+    global_count = Math.min(COUNT_MAX, global_count +1);
 
     gl.bindVertexArray(app.circle_vao);
     gl.useProgram(app.program);
@@ -394,14 +456,14 @@ function init_circle_vao_data(app: AppData): WebGLVertexArrayObject {
 
     const circle_vao: WebGLVertexArrayObject = gl.createVertexArray();
     gl.bindVertexArray(circle_vao);
-
+    
     const [cg_buffer, off_buffer, rad_buffer, hov_buffer] = buffer_init_multiple(gl, gl.ARRAY_BUFFER, gl.STATIC_DRAW, [
             new Float32Array(app.circle_instance.data()),
             new Float32Array(app.positions),
             new Float32Array(app.radii),
             app.hover_progress
     ]);
-
+    
     set_attrib_data(gl, program, {attrib_name: "aVertexPosition", buffer_id: cg_buffer}, 2, gl.FLOAT);
     set_attrib_data_instanced(gl, program, {attrib_name: "aVertexOffset", buffer_id: off_buffer}, 3, gl.FLOAT);
     set_attrib_data_instanced(gl, program, {attrib_name: "aRadius", buffer_id: rad_buffer}, 1, gl.FLOAT);
@@ -413,17 +475,17 @@ function init_circle_vao_data(app: AppData): WebGLVertexArrayObject {
         console.error("Unable to find location of uniform `uHoverID`...");
         return 0;
     }
-
+    
     return circle_vao;
 }
 
 function init_line_vao_data(app: AppData): WebGLVertexArrayObject {
     const gl: WebGL2RenderingContext = app.context;
     const program: WebGLProgram = app.line_program!;
-
+    
     const line_vao: WebGLVertexArrayObject = gl.createVertexArray();
     gl.bindVertexArray(line_vao);
-
+    
     const edge_positions = new Array(app.num_lines * 4);
     for (let i = 0; i < app.num_lines; i++) {
         const true_idx: number = i * 4;
@@ -436,7 +498,7 @@ function init_line_vao_data(app: AppData): WebGLVertexArrayObject {
         edge_positions[true_idx + 2] = app.line_positions[second_pos_idx];
         edge_positions[true_idx + 3] = app.line_positions[second_pos_idx + 1];
     }
-
+    
     console.log("edges: ", app.line_edges);
     
     const li_buffer = buffer_init(gl, gl.ARRAY_BUFFER, app.line_instance.data(), gl.STATIC_DRAW);
@@ -445,6 +507,18 @@ function init_line_vao_data(app: AppData): WebGLVertexArrayObject {
     set_attrib_data_instanced(gl, program, {attrib_name: "aEdgeOffsets", buffer_id: edge_pos_buffer}, 4, gl.FLOAT);
 
     return line_vao;
+}
+
+type CanvasCallback = (cv: HTMLCanvasElement) => void;
+
+/** Hook for initializing the canvas & all structures dependent on its existence */
+function useCanvasInstantiator(callbacks?: CanvasCallback[] | undefined): CanvasCallback {
+    const setRef = React.useCallback((node: HTMLCanvasElement | null) => {
+        if (node) {
+            callbacks?.forEach((cb) => cb(node));
+        }
+    }, [callbacks]);
+    return setRef;
 }
 
 /** Hook for setting the canvas app */
@@ -483,12 +557,21 @@ function useCircleApp(num_circles: number, num_lines: number): CanvasCallback {
         }
 
         let last_time: DOMHighResTimeStamp = 0;
+        let active = true;
         const render_loop: FrameRequestCallback = (time: DOMHighResTimeStamp) => {
+            if (!active) { return; }
             last_time = app_update(app, last_time, time);
             app_draw(app);
             requestAnimationFrame(render_loop);
         }
         requestAnimationFrame(render_loop);
+        return () => { 
+            active = false; 
+            if (app.program) gl.deleteProgram(app.program);
+            if (app.circle_vao) gl.deleteVertexArray(app.circle_vao);
+            if (app.line_program) gl.deleteProgram(app.line_program);
+            if (app.line_vao) gl.deleteVertexArray(app.line_vao);
+        };
     }, []);
 
     return canvas_init;
@@ -496,7 +579,7 @@ function useCircleApp(num_circles: number, num_lines: number): CanvasCallback {
 
 /** Engine page component */
 export function EnginePage(cv_shape: {width: number, height: number }): React.JSX.Element {
-    const canvas_app_init: CanvasCallback = useCircleApp(3, 5);
+    const canvas_app_init: CanvasCallback = useCircleApp(3, 1);
     return (
         <div>
             <p>Hello world</p>
