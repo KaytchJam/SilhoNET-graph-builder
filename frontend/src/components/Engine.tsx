@@ -38,8 +38,8 @@ function get_line_hover_id(mouse_pos: Coord2D, line_positions: number[], edges: 
     let transform: mat3 = new Float32Array(9);
     let mouse_local: vec3 = new Float32Array(3);
 
-    console.log("mouse coods: ", [...MOUSE_VEC]);
-    console.log("positions: ", line_positions);
+    // console.log("mouse coods: ", [...MOUSE_VEC]);
+    // console.log("positions: ", line_positions);
 
     for (let i = 0; i < edges.length; i += 2) {
         const start_pos_idx: number = edges[i] * 2;
@@ -49,14 +49,14 @@ function get_line_hover_id(mouse_pos: Coord2D, line_positions: number[], edges: 
         dir[1] = line_positions[end_pos_idx + 1] - line_positions[start_pos_idx + 1];
         dir[2] = 0.0;
 
-        console.log("dir (pre-normalization): ", dir);
+        // console.log("dir (pre-normalization): ", dir);
         
         const length: number = vec3.length(dir);
         dir = vec3.normalize(dir, dir);
         normal = vec3.cross(normal, dir, Z);
         
-        console.log("dir (post-normalization): ", dir);
-        console.log("normal: ", normal);
+        // console.log("dir (post-normalization): ", dir);
+        // console.log("normal: ", normal);
 
         transform[0] = dir[0];
         transform[1] = dir[1];
@@ -70,12 +70,12 @@ function get_line_hover_id(mouse_pos: Coord2D, line_positions: number[], edges: 
         transform[7] = line_positions[start_pos_idx + 1];
         transform[8] = 1.0;
 
-        console.log("transform: ", transform);
+        // console.log("transform: ", transform);
 
         transform = mat3.invert(transform, transform);
         mouse_local = vec3.transformMat3(mouse_local, MOUSE_VEC, transform);
 
-        console.log(`mouse local (edge ${i / 2}) = (${mouse_local[0]},${mouse_local[1]},${mouse_local[2]}`);
+        // console.log(`mouse local (edge ${i / 2}) = (${mouse_local[0]},${mouse_local[1]},${mouse_local[2]}`);
 
         if ((0.0 <= mouse_local[0] && mouse_local[0] <= length) && (-thickness <= mouse_local[1] && mouse_local[1] <= thickness)) {
             return i / 2;
@@ -181,7 +181,7 @@ function init_app(
         num_lines: num_lines,
         line_program: null,
         line_positions: random_coords(num_lines * 2, {low: 20, high: cv.width - 20}, {low: 20, high: cv.height - 20}).map((c) => c.get_xy()).flat(),
-        line_edges: [0,1], //random_coords(num_lines, {low: 0, high: num_lines}, {low: 0, high: num_lines}).map((c) => c.get_xy()).flat().map((v) => Math.floor(v)),
+        line_edges: [ 0, 1, 2, 3], //random_coords(num_lines, {low: 0, high: num_lines}, {low: 0, high: num_lines}).map((c) => c.get_xy()).flat().map((v) => Math.floor(v)),
         line_instance: new LineInstance(),
         mouse_pos: new Coord2D(0,0)
     };
@@ -579,7 +579,7 @@ function useCircleApp(num_circles: number, num_lines: number): CanvasCallback {
 
 /** Engine page component */
 export function EnginePage(cv_shape: {width: number, height: number }): React.JSX.Element {
-    const canvas_app_init: CanvasCallback = useCircleApp(3, 1);
+    const canvas_app_init: CanvasCallback = useCircleApp(3, 3);
     return (
         <div>
             <p>Hello world</p>
