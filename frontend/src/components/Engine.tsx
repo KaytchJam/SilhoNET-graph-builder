@@ -145,6 +145,7 @@ type AppData = {
     line_program: WebGLProgram | null,
     line_hover_progress: Float32Array,
     line_hov_buffer: WebGLBuffer,
+    uLPos: WebGLUniformLocation | null,
     
     mouse_pos: Coord2D,
 }
@@ -187,6 +188,7 @@ function init_app(
         line_instance: new LineInstance(),
         line_hover_progress: (new Float32Array(2)).fill(0),
         line_hov_buffer: 0,
+        uLPos: null,
 
         // MOUSE COORDS
         mouse_pos: new Coord2D(0,0)
@@ -288,6 +290,11 @@ const l_shader_instanced_vs = glsl`
     attribute vec3 aVertexPosition;
     attribute vec4 aEdgeOffsets;
     attribute float aHoverProgress;
+    attribute float aLineID;
+
+    uniform lowp int uHoverID;
+
+    varying float vLineID;
 
     /** For normal calculation */
     vec3 Z = vec3(0.0, 0.0, -1.0);
@@ -311,6 +318,8 @@ const l_shader_instanced_vs = glsl`
     void main() {
         const float width = 600.0;
         const float height = 400.0;
+
+        vLineID = aLineID;
         
         int index = int(aVertexPosition.z);
         vec2 from = aEdgeOffsets.xy;
@@ -339,12 +348,21 @@ const l_shader_instanced_vs = glsl`
 `;
     
 const l_shader_instanced_fs = glsl`
-precision lowp float;
+    precision lowp float;
 
-void main() {
-        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+    uniform lowp int uHoverID;
+
+    varying float vLineID;
+
+    void main() {
+        vec3 color = vec3(1.0, 1.0, 1.0);
+        if (uHoverID == int(vLineID)) {
+            color = vec3(0.0, 5.0, 1.0);
+        }
+
+        gl_FragColor = vec4(color, 1.0);
     }
-    `;
+`;
     
     /** creates a buffer, fills it with `data` and returns said buffer's id */
     function buffer_init<Buffer extends ArrayBufferView<ArrayBufferLike>>(context: WebGL2RenderingContext, target: GLenum, data: Buffer, usage: GLenum) {
@@ -412,9 +430,6 @@ function set_attrib_data_instanced(context: WebGL2RenderingContext, program: Web
     return attrib;
 }
 
-let global_count = 0;
-const COUNT_MAX: number = 1000;
-
 /** Update function */
 function app_update(app: AppData, prev_time: DOMHighResTimeStamp, time: DOMHighResTimeStamp): DOMHighResTimeStamp {
     const gl = app.context;
@@ -433,19 +448,6 @@ function app_update(app: AppData, prev_time: DOMHighResTimeStamp, time: DOMHighR
     for (let i = 0; i < app.line_edges.length / 2; i++) {
         app.line_hover_progress[i] = clamp(0.0, (line_id !== null && i == line_id) ? app.line_hover_progress[i] + dt : app.line_hover_progress[i] - dt, 1.0);
     }
-    
-    
-    // if (global_count < COUNT_MAX) {
-    //     const hover_id: number | null = get_line_hover_id(mouse_pos_local, app.line_positions, app.line_edges, 5);
-    //     console.log(global_count);
-    //     if (hover_id !== null) {
-    //         console.log(`Hovering over edge: [${hover_id}] -> (${app.line_edges[hover_id * 2]},${hover_id * 2 + 1})`);
-    //     } else {
-    //         console.log("Hovering over edge: [NULL]");
-    //     }
-    // }
-
-    global_count = Math.min(COUNT_MAX, global_count +1);
 
     gl.bindVertexArray(app.circle_vao);
     gl.useProgram(app.program);
@@ -457,6 +459,7 @@ function app_update(app: AppData, prev_time: DOMHighResTimeStamp, time: DOMHighR
     gl.useProgram(app.line_program);
     gl.bindBuffer(gl.ARRAY_BUFFER, app.line_hov_buffer);
     gl.bufferData(gl.ARRAY_BUFFER, app.line_hover_progress, gl.STATIC_DRAW);
+    gl.uniform1i(app.uLPos, line_id !== null ? line_id : -1);
 
     return time;
 }
@@ -535,12 +538,21 @@ function init_line_vao_data(app: AppData): WebGLVertexArrayObject {
     const li_buffer = buffer_init(gl, gl.ARRAY_BUFFER, app.line_instance.data(), gl.STATIC_DRAW);
     const edge_pos_buffer = buffer_init(gl, gl.ARRAY_BUFFER, new Float32Array(edge_positions), gl.STATIC_DRAW);
     const line_hov_buffer = buffer_init(gl, gl.ARRAY_BUFFER, app.line_hover_progress, gl.STATIC_DRAW);
+    const line_id_buffer = buffer_init(gl, gl.ARRAY_BUFFER, new Float32Array(app.line_edges.length / 2).map((_,i) => i), gl.STATIC_DRAW);
 
     set_attrib_data(gl, program, {attrib_name: "aVertexPosition", buffer_id: li_buffer}, 3, gl.FLOAT);
     set_attrib_data_instanced(gl, program, {attrib_name: "aEdgeOffsets", buffer_id: edge_pos_buffer}, 4, gl.FLOAT);
     set_attrib_data_instanced(gl, program, {attrib_name: "aHoverProgress", buffer_id: line_hov_buffer}, 1, gl.FLOAT);
+    set_attrib_data_instanced(gl, program, {attrib_name: "aLineID", buffer_id: line_id_buffer}, 1, gl.FLOAT);
 
     app.line_hov_buffer = line_hov_buffer;
+    app.uLPos = gl.getUniformLocation(program, "uHoverID");
+
+    if (app.uLPos === null) {
+        console.error("Unabled to find location of uniform `uHoverID`...");
+        return 0;
+    }
+
     return line_vao;
 }
 
