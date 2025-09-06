@@ -340,8 +340,9 @@ const l_shader_instanced_vs = glsl`
         }
 
         float thickness_out = smooth_lerpf(thickness, thickness + 5.0, aHoverProgress);
+        float priority = uHoverID == int(aLineID) ? -1.0 : 0.0;
 
-        gl_Position = vec4(offset + thickness_out * normal, 0.0, 1.0);
+        gl_Position = vec4(offset + thickness_out * normal, priority, 1.0);
         gl_Position.x = gl_Position.x / width * 2.0 - 1.0;
         gl_Position.y = (height - gl_Position.y) / height * 2.0 - 1.0;
     }
