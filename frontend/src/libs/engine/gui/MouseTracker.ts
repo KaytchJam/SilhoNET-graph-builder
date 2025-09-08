@@ -1,5 +1,5 @@
 import { user_mouse_vs_text, user_mouse_fs_text } from "../../../shaders/shader_strings";
-import { init_shader_program } from "../../../utils/webgl/shader_funcs";
+import { init_shader_program } from "../../../utils/webgl/helper";
 
 export class MouseTracker {
     private position: [number, number];
