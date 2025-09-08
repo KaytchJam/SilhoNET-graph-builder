@@ -36,7 +36,10 @@ export class GraphEngine {
     private m_context: WebGL2RenderingContext | undefined;
 
     // interaction states
-    private m_mouse_pos: Coord2D;
+    private m_mouse_pos_cback: Coord2D;
+    private m_left_clicked_cback: boolean;
+
+    private m_mouse_pos: vec2;
     private m_left_clicked: boolean;
     private m_selected_node: number | null;
 
@@ -47,8 +50,10 @@ export class GraphEngine {
     
     /** Private constructor, forcing construction through the static method */
     private constructor() {
-        this.m_mouse_pos = new Coord2D(0,0);
+        this.m_mouse_pos_cback = new Coord2D(0,0);
+        this.m_mouse_pos = [0.0, 0.0];
         this.m_left_clicked = false;
+        this.m_left_clicked_cback = false;
         this.m_selected_node = null;
     }
 
@@ -74,7 +79,7 @@ export class GraphEngine {
 
         const mouse_callback = (event: MouseEvent) => {
             const bb: DOMRect = canvas.getBoundingClientRect();
-            engine.m_mouse_pos.set_xy(
+            engine.m_mouse_pos_cback.set_xy(
                 event.clientX - bb.left,
                 event.clientY - bb.top
             );
@@ -83,7 +88,7 @@ export class GraphEngine {
         const left_click_callback = (event: MouseEvent) => {
             switch (event.button) {
                 case 0: // LEFT CLICK
-                    engine.m_left_clicked = true;
+                    engine.m_left_clicked_cback = true;
                     break;
                 case 1: // RIGHT CLICK
                     break;
@@ -109,9 +114,10 @@ export class GraphEngine {
         const gl = this.m_context!;
         const dt = (cur_time - prev_time) / 16.67;
 
-        // local instances of our "callback-variables" in update to prevent modification
-        const mouse_position: vec2 = this.m_mouse_pos.get_xy();
-        const left_clicked: boolean = this.m_left_clicked;
+        // pass on values of our "callback-variables" to "local versions" in update to prevent modification
+        this.m_mouse_pos[0] = this.m_mouse_pos_cback.get_x();
+        this.m_mouse_pos[1] = this.m_mouse_pos_cback.get_y();
+        this.m_left_clicked = this.m_left_clicked_cback;
     }
 
     /** Draw all the important things for our engine */
