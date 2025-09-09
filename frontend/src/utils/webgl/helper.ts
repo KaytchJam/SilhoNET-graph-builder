@@ -41,6 +41,13 @@ export function buffer_init<Buffer extends ArrayBufferView<ArrayBufferLike>>(con
     return buffer;
 }
 
+/** Create a buffer, bind it, and return the buffer. Passes no data into said buffer. */
+export function buffer_init_empty(context: WebGL2RenderingContext, target: GLenum) {
+    const buffer = context.createBuffer();
+    context.bindBuffer(target, buffer);
+    return buffer;
+}
+
 /** initializes multiples buffers (with the same target & usage parameters) and returns all their ids */
 export function buffer_init_multiple<Buffer extends ArrayBufferView<ArrayBufferLike>>(context: WebGL2RenderingContext, target: GLenum, usage: GLenum, dataset: Buffer[]): WebGLBuffer[] {
     const buffer_ids: WebGLBuffer[] = new Array(dataset.length);
@@ -97,4 +104,18 @@ export function set_attrib_data_instanced(context: WebGL2RenderingContext, progr
     context.vertexAttribDivisor(attrib.attrib_loc, divisor);
     
     return attrib;
+}
+
+type UniformCallback = (gl: WebGL2RenderingContext, ul: WebGLUniformLocation) => void;
+
+export function quick_uniform(gl: WebGL2RenderingContext, program: WebGLProgram, uniform_name: string, callback: UniformCallback): boolean {
+    gl.useProgram(program);
+    const loc = gl.getUniformLocation(program, uniform_name);
+    if (loc !== null) {
+        callback(gl, loc);
+        return true;
+    }
+
+    console.error(`quick_uniform: Unable to find Uniform Location of ${uniform_name}...`);
+    return false;
 }
