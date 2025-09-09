@@ -38,9 +38,6 @@ function get_line_hover_id(mouse_pos: Coord2D, line_positions: number[], edges: 
     let transform: mat3 = new Float32Array(9);
     let mouse_local: vec3 = new Float32Array(3);
 
-    // console.log("mouse coods: ", [...MOUSE_VEC]);
-    // console.log("positions: ", line_positions);
-
     for (let i = 0; i < edges.length; i += 2) {
         const start_pos_idx: number = edges[i] * 2;
         const end_pos_idx: number = edges[i+1] * 2;
@@ -209,7 +206,7 @@ const glsl = (x: any) => x;
 
 /** Vertex Shader */ 
 const c_shader_instanced_vs: string = glsl`
-precision lowp float;
+    precision lowp float;
 
     attribute vec2 aVertexPosition;
     attribute vec3 aVertexOffset;
