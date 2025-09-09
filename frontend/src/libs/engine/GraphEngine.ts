@@ -35,7 +35,7 @@ export class GraphEngine {
     // rendering context
     private m_context: WebGL2RenderingContext | undefined;
 
-    // interaction states
+    // interaction related states + callbacks
     private m_mouse_pos_cback: Coord2D;
     private m_left_clicked_cback: boolean;
 
@@ -111,8 +111,8 @@ export class GraphEngine {
     }
 
     public update(prev_time: DOMHighResTimeStamp, cur_time: DOMHighResTimeStamp) {
-        const gl = this.m_context!;
-        const dt = (cur_time - prev_time) / 16.67;
+        const gl: WebGL2RenderingContext = this.m_context!;
+        const dt: DOMHighResTimeStamp = (cur_time - prev_time) / 16.67;
 
         // pass on values of our "callback-variables" to "local versions" in update to prevent modification
         this.m_mouse_pos[0] = this.m_mouse_pos_cback.get_x();
