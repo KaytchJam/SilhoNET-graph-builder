@@ -19,14 +19,11 @@ export function get_lc_states(selection_context: { node_picked: number | null, h
     let out: TClickEnum = ClickEnum.NONE;
     if (has_hovering && has_picked && !same_node) {
         out = ClickEnum.LC_ADD_EDGE;
-    }
-    else if (has_hovering && !has_picked) {
+    } else if (has_hovering && !has_picked) {
         out = ClickEnum.LC_SELECT_NODE;
-    }
-    else if (!has_hovering && has_picked) {
+    } else if (!has_hovering && has_picked) {
         out = ClickEnum.LC_DESELECT_NODE;
-    }
-    else if (!has_hovering && !has_picked) {
+    } else if (!has_hovering && !has_picked) {
         out = ClickEnum.LC_ADD_NODE;
     }
 
