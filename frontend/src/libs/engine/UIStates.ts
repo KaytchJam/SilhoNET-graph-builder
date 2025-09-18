@@ -6,6 +6,7 @@ export const ClickEnum = {
     LC_ADD_NODE: 2, 
     LC_SELECT_NODE: 3, 
     LC_DESELECT_NODE: 4,
+    LC_MOVE_NODE: 5,
 } as const;
 
 export type TClickEnum = EnumLike<typeof ClickEnum>;

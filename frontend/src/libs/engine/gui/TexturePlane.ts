@@ -10,6 +10,7 @@ export class TexturePlane {
             
     static load_texture(gl: WebGL2RenderingContext, img_in: HTMLImageElement, program: WebGLProgram): WebGLTexture {
         const texture: WebGLTexture = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
@@ -17,9 +18,6 @@ export class TexturePlane {
             gl.TEXTURE_2D,
             0,
             gl.RGB,
-            img_in.width,
-            img_in.height,
-            0,
             gl.RGB,
             gl.UNSIGNED_BYTE,
             img_in
@@ -32,7 +30,7 @@ export class TexturePlane {
             console.log(`Error while trying to find uniform location of ${"uSampler"}`);
         }
 
-        gl.uniform1i(sampler_location, texture as number);
+        gl.uniform1i(sampler_location, 0);
         return texture;
     }
 
@@ -89,6 +87,10 @@ export class TexturePlane {
         this.program = init_shader_program(gl, texture_plane_vs_text, texture_plane_fs_text)!;
         this.vao = TexturePlane.init_vao(gl, this.program);
         this.texture = TexturePlane.load_texture(gl, img_in, this.program);
+    }
+
+    public free(gl: WebGL2RenderingContext) {
+        gl.deleteVertexArray(this.vao);
     }
 
     public draw(gl: WebGL2RenderingContext): void {

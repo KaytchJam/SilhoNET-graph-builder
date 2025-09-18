@@ -7,8 +7,6 @@ type CanvasCallback = (cv: HTMLCanvasElement) => void;
 /** Hook for initializing the canvas & all structures dependent on its existence */
 function useCanvasInstantiator(callbacks?: CanvasCallback[] | undefined): CanvasCallback {
     const setRef = React.useCallback((node: HTMLCanvasElement | null) => {
-        // console.log("Canvas has been instantiated, this is the callback.");
-        // console.log("The state of our canvas is: " + (node !== null ? "nodeValue" : "null"));
         if (node) {
             callbacks?.forEach((cb) => cb(node));
         }
@@ -16,13 +14,26 @@ function useCanvasInstantiator(callbacks?: CanvasCallback[] | undefined): Canvas
     return setRef;
 }
 
+/** Hook for updating the background of our app */
+function useUpdateBackground(app_ref: React.RefObject<GraphEngine | null>, image_elem: HTMLImageElement | undefined) {
+    React.useEffect(() => {
+        console.log("Image Elem updated");
+        console.log("Image Elem state: " + image_elem);
+        if (app_ref.current !== null) {
+            app_ref.current.set_background_image(image_elem);
+        }
+    }, [image_elem]);
+}
+
 /** Hook for setting the canvas app */
 function useGraphEngineApp(image_elem?: HTMLImageElement | undefined): CanvasCallback {
     const app_data = React.useRef<GraphEngine>(null);
-    const canvas_init: CanvasCallback = useCanvasInstantiator([(cv) => app_data.current = GraphEngine.build(cv, image_elem)]);
+    const canvas_init: CanvasCallback = useCanvasInstantiator([(cv) => { if (!app_data.current) { app_data.current = GraphEngine.build(cv, image_elem); }} ]);
+    useUpdateBackground(app_data, image_elem);
 
     React.useEffect(() => {
         const app: GraphEngine = app_data.current!;
+        console.log("Creating App instance...");
         if (app === null) {
             console.error("By some magical set of circumstances, `app_data.current` = `NULL`. I fucked up.");
             return;
@@ -50,7 +61,6 @@ function useGraphEngineApp(image_elem?: HTMLImageElement | undefined): CanvasCal
  * and global attributes. */
 export function EngineBodyComponent(engine_in: {width: number, height: number, image_elem?: HTMLImageElement | undefined}): React.JSX.Element {
     const canvas_app_init: CanvasCallback = useGraphEngineApp(engine_in.image_elem);
-    // console.log("mounting engineBodyComponent");
     return (
         <div>
             <canvas ref={canvas_app_init} width={engine_in.width} height={engine_in.height}></canvas>
@@ -61,7 +71,6 @@ export function EngineBodyComponent(engine_in: {width: number, height: number, i
 /** Engine page component */
 export function EnginePage(cv_shape: {width: number, height: number }): React.JSX.Element {
     const [image_in, set_image_in] = React.useState<HTMLImageElement | undefined>(undefined);
-    // console.log(`image_in is ${(image_in === undefined) ? "undefined" : "defined"}`);
 
     return (
         <div>

@@ -52,8 +52,8 @@ export class GraphEngine {
     private m_tracker: MouseTracker | undefined;
 
     // other
-    private static s_node_radius: number = 5;
-    private static s_edge_girth: number = 5;
+    private static S_NODE_RADIUS: number = 5.0;
+    private static S_EDGE_GIRTH: number = 2.0;
     
     /** Private constructor, forcing construction through the static method */
     private constructor() {
@@ -77,7 +77,7 @@ export class GraphEngine {
         }
 
         engine.m_context = ctxt;
-        engine.m_graph = new RenderGraph(engine.m_context, new MetaGraph(), GraphEngine.s_node_radius, GraphEngine.s_edge_girth);
+        engine.m_graph = new RenderGraph(engine.m_context, new MetaGraph(), GraphEngine.S_NODE_RADIUS, GraphEngine.S_EDGE_GIRTH);
         engine.m_tracker = new MouseTracker(engine.m_context);
 
         if (txt_img !== undefined) {
@@ -117,9 +117,28 @@ export class GraphEngine {
         return engine;
     }
 
+    public set_background_image(img?: HTMLImageElement | undefined): void {
+        if (img === undefined) {
+            console.log("Image is undefined...");
+            this.m_plane = undefined;
+            return;
+        }
+
+        console.log("Image is defined");
+        this.m_plane = new TexturePlane(this.m_context!, img);
+        if (this.m_plane === undefined) {
+            console.log("MPLANE is UNDEFINED");
+        } else if (this.m_plane === null) {
+            console.log("MPLANE IS NULL");
+        } else {
+            console.log("MPLANE POPULATED");
+        }
+    }
+
     /** Find the nearest Graph node to the user's mouse within a given threshold. */
-    public select(mouse_pos: vec2): number | null {
-        const thresh_sqred: number = GraphEngine.s_node_radius * GraphEngine.s_node_radius;
+    public select(mouse_pos: vec2, flexibility: number = 2.0): number | null {
+        const thresh: number = GraphEngine.S_NODE_RADIUS + flexibility;
+        const thresh_sqred: number = thresh * thresh;
         let match: number = -1;
         let match_dist_sqrd: number = Number.POSITIVE_INFINITY;
         let node_pos: vec2 = [0.0, 0.0];
@@ -182,9 +201,10 @@ export class GraphEngine {
         }
     }
 
+    /** Update variables before the next render-call */
     public update(prev_time: DOMHighResTimeStamp, cur_time: DOMHighResTimeStamp) {
         const gl: WebGL2RenderingContext = this.m_context!;
-        const dt: DOMHighResTimeStamp = (cur_time - prev_time) / 16.67;
+       //  const dt: DOMHighResTimeStamp = (cur_time - prev_time) / 16.67;
 
         // pass on values of our "callback-variables" to "local versions" in update to prevent modification
         this.m_mouse_pos[0] = this.m_mouse_pos_cback.get_x();
@@ -194,7 +214,6 @@ export class GraphEngine {
         // are we "over" any particular node?
         const hover_node: number | null = this.select(this.m_mouse_pos);
         if (this.m_left_clicked) { 
-            console.log("Left clicked");
             this.left_click_update(hover_node); 
         }
 
@@ -202,6 +221,8 @@ export class GraphEngine {
         this.m_left_clicked_cback = false;
 
         this.m_tracker!.update_position(this.m_mouse_pos);
+        this.m_graph!.set_hover_node(gl, hover_node !== null ? hover_node : -1);
+        this.m_graph!.set_select_node(gl, this.m_selected_node !== null ? this.m_selected_node : -1);
     }
 
     /** Draw all the important things for our engine */

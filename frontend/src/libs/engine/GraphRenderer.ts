@@ -19,13 +19,20 @@ type GraphMap<N, E, G extends IndexedGraph<N, E>> = GraphTransformer<G>;
 const glsl = (x: any) => x;
 
 const NODE_VS_SHADER = glsl`
-    precision lowp float;
+    precision mediump float;
+    precision mediump int;
 
     attribute vec2 aVertexPosition;
     attribute vec3 aVertexOffset;
     
     uniform vec2 uResolution2D;
     uniform float uNodeRadius;
+    uniform int uHoverNode;
+    uniform int uSelectNode;
+
+    varying float vNodeID;
+
+    float hover_node_radius = 5.0;
 
     /** Converts from "Canvas Coordinates" to Normalized Device Coordinates. 
      * Flips the y-axis during this conversion. */
@@ -35,17 +42,38 @@ const NODE_VS_SHADER = glsl`
 
     void main() {
         // compose it all together -> convert to ndc
-        vec2 shifted = aVertexPosition * uNodeRadius + aVertexOffset.xy;
+        int node_id = int(aVertexOffset.z);
+        bool is_hovered = uHoverNode == node_id;
+        bool is_selected = uSelectNode == node_id;
+        vNodeID = aVertexOffset.z;
+
+        float final_radius = uNodeRadius + float(is_hovered) * hover_node_radius;
+        vec2 shifted = aVertexPosition * final_radius + aVertexOffset.xy;
         vec2 ndc = canvas_to_ndc(shifted, uResolution2D);
-        gl_Position = vec4(ndc, 0.0, 1.0);
+        gl_Position = vec4(ndc, float(is_hovered || is_selected) * -1.0, 1.0);
     }
 `;
 
 const NODE_FS_SHADER = glsl`
-    precision lowp float;
+    precision mediump float;
+    precision mediump int;
+
+    uniform int uHoverNode;
+    uniform int uSelectNode;
+
+    varying float vNodeID;
 
     void main() {
-        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+        int node_id = int(vNodeID);
+        bool is_hovered = node_id == uHoverNode;
+        bool is_selected = node_id == uSelectNode;
+
+        vec3 color = vec3(0.0, 0.0, 0.0);
+        if (is_hovered || is_selected) {
+            color = vec3(1.0, 0.0, 0.0);
+        }
+        
+        gl_FragColor = vec4(color, 1.0);
     }
 `;
 
@@ -119,11 +147,13 @@ export class RenderGraph<N extends Positionable, G extends IndexedGraph<N,any>> 
     private topology: G;
 
     // NODE RENDERING
-    static node_circle_instance = new CircleInstance();
+    static node_circle_instance = new CircleInstance(60);
     node_vao: WebGLVertexArrayObject = 0;
     node_program: WebGLProgram = 0;
     node_offset_vbo: WebGLBuffer = 0;
     node_circle_radius: number;
+    node_hover_uniform_loc: WebGLUniformLocation = 0;
+    node_select_uniform_loc: WebGLUniformLocation = 0;
 
     // EDGE RENDERING
     static edge_line_instance = new LineInstance();
@@ -138,7 +168,7 @@ export class RenderGraph<N extends Positionable, G extends IndexedGraph<N,any>> 
     /** Initializes the relevant buffers & vertex arrays, along with attribute data
      *  required for rendering the nodes of our inner IndexedGraph `topology` */
     private init_node_render_data(gl: WebGL2RenderingContext): boolean {
-        const program = this.node_program;
+        const program: WebGLBuffer = this.node_program;
         if (program === null) {
             console.error("Error while initializing Node Shader Program");
             return false;
@@ -155,7 +185,36 @@ export class RenderGraph<N extends Positionable, G extends IndexedGraph<N,any>> 
 
         const u_res_status = quick_uniform(gl, program, "uResolution2D", (gl, loc) => gl.uniform2f(loc, gl.canvas.width, gl.canvas.height));
         const u_rad_status = quick_uniform(gl, program, "uNodeRadius", (gl, loc) => gl.uniform1f(loc, this.node_circle_radius));
-        return u_res_status && u_rad_status;
+
+        const u_hov_loc = gl.getUniformLocation(program, "uHoverNode");
+        let u_hov_status: boolean = false;
+        if (u_hov_loc) {
+            this.node_hover_uniform_loc = u_hov_loc;
+            gl.uniform1i(this.node_hover_uniform_loc, -1);
+            u_hov_status = true;
+        }
+
+        let u_sel_loc = gl.getUniformLocation(program, "uSelectNode");
+        let u_sel_status = false;
+        if (u_sel_loc) {
+            this.node_select_uniform_loc = u_sel_loc;
+            gl.uniform1i(this.node_select_uniform_loc, -1);
+            u_sel_status = true;
+        }
+
+        return u_res_status && u_rad_status && u_hov_status && u_sel_status;
+    }
+
+    public set_hover_node(gl: WebGL2RenderingContext, node_id: number): void {
+        gl.bindVertexArray(this.node_vao);
+        gl.useProgram(this.node_program);
+        gl.uniform1i(this.node_hover_uniform_loc, node_id);
+    }
+
+    public set_select_node(gl: WebGL2RenderingContext, node_id: number): void {
+        gl.bindVertexArray(this.node_vao);
+        gl.useProgram(this.node_program);
+        gl.uniform1i(this.node_select_uniform_loc, node_id);
     }
 
     /** Initialize the relevant buffers & vertex arrays, along with attribute data
@@ -182,7 +241,7 @@ export class RenderGraph<N extends Positionable, G extends IndexedGraph<N,any>> 
         return u_res_status && u_gir_status;
     }
 
-    constructor(gl: WebGL2RenderingContext, input_graph: G, node_radius: number = 5, edge_girth: number = 5) {
+    constructor(gl: WebGL2RenderingContext, input_graph: G, node_radius: number = 5, edge_girth: number = 2) {
         this.topology = input_graph;
         this.dirty_nodes = false;
         this.dirty_edges = false;
