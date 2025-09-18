@@ -31,8 +31,6 @@ export class Coord2D implements Positionable {
     set_xy(x: number, y: number): void { this.x = x; this.y = y; }
 }
 
-// type pvec2 = Coord2D & vec2;
-
 type CoordMG = MetaGraph<Coord2D,void>;
 type CoordRG<G extends IndexedGraph<Coord2D, any>> = RenderGraph<Coord2D, G>;
 
@@ -152,19 +150,34 @@ export class GraphEngine {
         this.m_selected_node = null;
     }
 
-    private add_edge(): void {
+    private add_edge(hover_node: number): void {
+        const g: CoordRG<CoordMG> = this.m_graph!;
+        const node_picked: number = this.m_selected_node!;
 
+        if (!g.expose_graph().inner().has_outgoing_to(node_picked, hover_node)) {
+            g.peek_mut((mg: CoordMG): CoordMG => {
+                mg.add_edge(node_picked, hover_node);
+                return mg;
+            });
+        }
     }
 
     private left_click_update(hover_node: number | null): void {
         switch (get_lc_states({ node_picked: this.m_selected_node, hover_node})) {
             case ClickEnum.LC_ADD_NODE:
+                this.add_node();
                 break;
             case ClickEnum.LC_ADD_EDGE:
+                this.add_edge(hover_node!);
+                this.m_selected_node = null;
                 break;
             case ClickEnum.LC_SELECT_NODE:
+                this.m_selected_node = hover_node!;
                 break;
             case ClickEnum.LC_DESELECT_NODE:
+                this.m_selected_node = null;
+                break;
+            default:
                 break;
         }
     }
@@ -180,9 +193,15 @@ export class GraphEngine {
 
         // are we "over" any particular node?
         const hover_node: number | null = this.select(this.m_mouse_pos);
-        if (this.m_left_clicked) {
-            this.left_click_update(hover_node);
+        if (this.m_left_clicked) { 
+            console.log("Left clicked");
+            this.left_click_update(hover_node); 
         }
+
+        this.m_left_clicked = false;
+        this.m_left_clicked_cback = false;
+
+        this.m_tracker!.update_position(this.m_mouse_pos);
     }
 
     /** Draw all the important things for our engine */
@@ -195,7 +214,7 @@ export class GraphEngine {
         gl.depthFunc(gl.LEQUAL);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        if (this.m_plane) { this.m_plane!.draw(gl); }
+        if (this.m_plane !== undefined) { this.m_plane!.draw(gl); }
         this.m_graph!.draw(gl);
         this.m_tracker!.draw(gl);
     }

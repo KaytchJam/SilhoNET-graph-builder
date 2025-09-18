@@ -1,5 +1,5 @@
 import React from "react";
-import { Coord2D, GraphEngine } from "../libs/engine/GraphEngine";
+import { GraphEngine } from "../libs/engine/GraphEngine";
 import { accept_file } from "../utils/files/file_funcs";
 
 type CanvasCallback = (cv: HTMLCanvasElement) => void;
@@ -7,6 +7,8 @@ type CanvasCallback = (cv: HTMLCanvasElement) => void;
 /** Hook for initializing the canvas & all structures dependent on its existence */
 function useCanvasInstantiator(callbacks?: CanvasCallback[] | undefined): CanvasCallback {
     const setRef = React.useCallback((node: HTMLCanvasElement | null) => {
+        // console.log("Canvas has been instantiated, this is the callback.");
+        // console.log("The state of our canvas is: " + (node !== null ? "nodeValue" : "null"));
         if (node) {
             callbacks?.forEach((cb) => cb(node));
         }
@@ -17,10 +19,14 @@ function useCanvasInstantiator(callbacks?: CanvasCallback[] | undefined): Canvas
 /** Hook for setting the canvas app */
 function useGraphEngineApp(image_elem?: HTMLImageElement | undefined): CanvasCallback {
     const app_data = React.useRef<GraphEngine>(null);
-    const canvas_init: CanvasCallback = useCanvasInstantiator([(cv) => GraphEngine.build(cv, image_elem)]);
+    const canvas_init: CanvasCallback = useCanvasInstantiator([(cv) => app_data.current = GraphEngine.build(cv, image_elem)]);
 
     React.useEffect(() => {
         const app: GraphEngine = app_data.current!;
+        if (app === null) {
+            console.error("By some magical set of circumstances, `app_data.current` = `NULL`. I fucked up.");
+            return;
+        }
 
         let last_time: DOMHighResTimeStamp = 0;
         let active: boolean = true;
@@ -32,6 +38,7 @@ function useGraphEngineApp(image_elem?: HTMLImageElement | undefined): CanvasCal
         }
         requestAnimationFrame(render_loop);
         return () => { 
+            console.log("Ending App Instance...");
             active = false; 
         };
     }, []);
@@ -43,16 +50,18 @@ function useGraphEngineApp(image_elem?: HTMLImageElement | undefined): CanvasCal
  * and global attributes. */
 export function EngineBodyComponent(engine_in: {width: number, height: number, image_elem?: HTMLImageElement | undefined}): React.JSX.Element {
     const canvas_app_init: CanvasCallback = useGraphEngineApp(engine_in.image_elem);
+    // console.log("mounting engineBodyComponent");
     return (
         <div>
             <canvas ref={canvas_app_init} width={engine_in.width} height={engine_in.height}></canvas>
         </div>
-    )
+    );
 }
 
 /** Engine page component */
 export function EnginePage(cv_shape: {width: number, height: number }): React.JSX.Element {
     const [image_in, set_image_in] = React.useState<HTMLImageElement | undefined>(undefined);
+    // console.log(`image_in is ${(image_in === undefined) ? "undefined" : "defined"}`);
 
     return (
         <div>
@@ -61,7 +70,7 @@ export function EnginePage(cv_shape: {width: number, height: number }): React.JS
                 <li>A blank canvas</li>
                 <li>A user-inputted image</li>
             </ol>
-            <form action={(f: FormData) => accept_file(f, "image-submit", set_image_in)}>
+            <form action={(f: FormData) => accept_file(f, "image-input", set_image_in)}>
                 <input type="file" accept="image/jpeg" name="image-input"/>
                 <button type="submit" name="image-submit">Create Canvas</button>
             </form>

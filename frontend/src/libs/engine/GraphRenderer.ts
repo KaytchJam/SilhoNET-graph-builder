@@ -30,7 +30,7 @@ const NODE_VS_SHADER = glsl`
     /** Converts from "Canvas Coordinates" to Normalized Device Coordinates. 
      * Flips the y-axis during this conversion. */
     vec2 canvas_to_ndc(vec2 canvas_pos, vec2 res) {
-        return (canvas_pos.x, res.y - canvas_pos.y) / res * 2.0 - vec2(1.0);
+        return vec2(canvas_pos.x, res.y - canvas_pos.y) / res * 2.0 - vec2(1.0);
     }
 
     void main() {
@@ -82,7 +82,7 @@ const EDGE_VS_SHADER = glsl`
     /** Converts from "Canvas Coordinates" to Normalized Device Coordinates. 
      * Flips the y-axis during this conversion. */
     vec2 canvas_to_ndc(vec2 canvas_pos, vec2 res) {
-        return (canvas_pos.x, res.y - canvas_pos.y) / res * 2.0 - vec2(1.0);
+        return vec2(canvas_pos.x, res.y - canvas_pos.y) / res * 2.0 - vec2(1.0);
     }
 
     void main() {
@@ -91,6 +91,7 @@ const EDGE_VS_SHADER = glsl`
         // get all our relevant vectors here (line-direction, line-normal, point-offset)
         vec2 direction = normalize(aEdgeOffsets.zw - aEdgeOffsets.xy);
         vec2 normal = determine_normal_direction(find_normal_2d(direction), line_index);
+        vec2 offset = determine_point_offset(aEdgeOffsets.xy, aEdgeOffsets.zw, line_index);
 
         // this does nothing... just filler, because it's my code
         if (int(aEdgeID) >= 0) {
@@ -137,7 +138,7 @@ export class RenderGraph<N extends Positionable, G extends IndexedGraph<N,any>> 
     /** Initializes the relevant buffers & vertex arrays, along with attribute data
      *  required for rendering the nodes of our inner IndexedGraph `topology` */
     private init_node_render_data(gl: WebGL2RenderingContext): boolean {
-        const program = init_shader_program(gl, "node_vs_shader", "node_fs_shader");
+        const program = this.node_program;
         if (program === null) {
             console.error("Error while initializing Node Shader Program");
             return false;
@@ -160,7 +161,7 @@ export class RenderGraph<N extends Positionable, G extends IndexedGraph<N,any>> 
     /** Initialize the relevant buffers & vertex arrays, along with attribute data
      * required for rendering the edges of our inner IndexedGraph `topology` */
     private init_edge_render_data(gl: WebGL2RenderingContext): boolean {
-        const program = init_shader_program(gl, "edge_vs_shader", "edge_fs_shader");
+        const program = this.edge_program;
         if (program === null) {
             console.error("Error while initializing Edge Shader Program");
             return false;
@@ -170,11 +171,11 @@ export class RenderGraph<N extends Positionable, G extends IndexedGraph<N,any>> 
         gl.bindVertexArray(this.edge_vao);
 
         const line_instance_vbo = buffer_init(gl, gl.ARRAY_BUFFER, RenderGraph.edge_line_instance.data(), gl.STATIC_DRAW);
-        this.edge_offset_vbo = buffer_init_empty(gl, gl.STATIC_DRAW);
+        this.edge_offset_vbo = buffer_init_empty(gl, gl.ARRAY_BUFFER);
 
         set_attrib_data(gl, program, {attrib_name: "aVertexPosition", buffer_id: line_instance_vbo}, 3, gl.FLOAT);
         set_attrib_data_instanced(gl, program, {attrib_name: "aEdgeOffsets", buffer_id: this.edge_offset_vbo}, 4, gl.FLOAT, false, 20);
-        set_attrib_data_instanced(gl, program, {attrib_name: "aEdgeID", buffer_id: this.edge_offset_vbo}, 1, gl.FLOAT, false, 20, 20);
+        set_attrib_data_instanced(gl, program, {attrib_name: "aEdgeID", buffer_id: this.edge_offset_vbo}, 1, gl.FLOAT, false, 16, 20);
 
         const u_res_status = quick_uniform(gl, program, "uResolution2D", (gl, loc) => gl.uniform2f(loc, gl.canvas.width, gl.canvas.height));
         const u_gir_status = quick_uniform(gl, program, "uEdgeGirth", (gl, loc) => gl.uniform1f(loc, this.edge_line_girth));
@@ -214,6 +215,7 @@ export class RenderGraph<N extends Positionable, G extends IndexedGraph<N,any>> 
     private build_node_vertices(gl: WebGL2RenderingContext): void {
         const N: number = this.topology.num_nodes();
         const node_offsets: Float32Array = new Float32Array(N * 3);
+
         for (let i = 0; i < N; i++) {
             const idx: number = i * 3;
             const coord = this.topology.node_weight(i);
@@ -245,7 +247,7 @@ export class RenderGraph<N extends Positionable, G extends IndexedGraph<N,any>> 
             edge_offsets[idx + 1] = from_coord.get_y();
             edge_offsets[idx + 2] = to_coord.get_x();
             edge_offsets[idx + 3] = to_coord.get_y();
-            edge_offsets[idx + 5] = i;
+            edge_offsets[idx + 4] = i;
         }
 
         gl.bindVertexArray(this.edge_vao);
@@ -262,6 +264,7 @@ export class RenderGraph<N extends Positionable, G extends IndexedGraph<N,any>> 
         return this;
     }
 
+    /** Expose the internal graph of the RenderGraph as a Readonly. No dirty field check is done here... beware. */
     public peek(M: (g: Readonly<G>) => void): RenderGraph<N,G> {
         M(this.topology);
         return this;

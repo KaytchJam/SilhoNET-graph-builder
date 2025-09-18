@@ -9,6 +9,10 @@ export class MetaGraph<N,E> implements IndexedGraph<N,E> {
         this.topology = new kGraph();
     }
 
+    public inner(): kGraph<N,E> {
+        return this.topology;
+    }
+
     /** Returns whether the MetaGraph already "has" an attribute  */
     public has_attr(attr: string): boolean {
         return this.attribute_map.has(attr);

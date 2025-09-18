@@ -28,6 +28,7 @@ function file_to_image(file: File): Promise<HTMLImageElement> {
  * the function F `setter`. */
 export async function accept_file<F extends (arg: HTMLImageElement | undefined) => void>(f: FormData, input_name: string, setter: F): Promise<void> {
     const input_file: FormDataEntryValue | null = f.get(input_name);
+    // console.log("Remounting.");
     if (input_file) {
         const input_image: HTMLImageElement = await file_to_image(input_file as File);
         setter(input_image);

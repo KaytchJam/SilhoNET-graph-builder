@@ -1,8 +1,9 @@
 import { user_mouse_vs_text, user_mouse_fs_text } from "../../../shaders/shader_strings";
 import { init_shader_program } from "../../../utils/webgl/helper";
+import { vec2 } from "gl-matrix"
 
 export class MouseTracker {
-    private position: [number, number];
+    private position: vec2;
     private program: WebGLProgram;
     private vao: WebGLVertexArrayObject;
     private vbo: WebGLBuffer;
@@ -40,7 +41,7 @@ export class MouseTracker {
         this.dirty = false;
     }
 
-    public update_position(pos: [number, number]): MouseTracker {
+    public update_position(pos: vec2): MouseTracker {
         this.position = pos;
         this.dirty = true;
         return this;
