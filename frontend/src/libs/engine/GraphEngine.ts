@@ -6,7 +6,7 @@ import { TexturePlane } from "./gui/TexturePlane";
 import { MouseTracker } from "./gui/MouseTracker";
 
 import { vec2 } from "gl-matrix"
-import { ClickEnum, get_lc_states } from "./UIStates";
+import { ClickEnum, get_lc_states, type TClickEnum } from "./UIStates";
 
 export class Coord2D implements Positionable {
     x: number;
@@ -31,8 +31,28 @@ export class Coord2D implements Positionable {
     set_xy(x: number, y: number): void { this.x = x; this.y = y; }
 }
 
-type CoordMG = MetaGraph<Coord2D,void>;
-type CoordRG<G extends IndexedGraph<Coord2D, any>> = RenderGraph<Coord2D, G>;
+/** Wrapper for the vec2 type that has support w/ Positionable */
+export class PVec2 implements Positionable {
+    vec: vec2;
+
+    constructor(x: number = 0, y: number = 0) {
+        this.vec = new Float32Array([x, y]);
+    }
+
+    get_x(): number { return this.vec[0]; }
+    get_y(): number { return this.vec[1]; }
+    get_xy(): [number, number] { return [this.vec[0], this.vec[1]]; }
+
+    set_x(x: number): void { this.vec[0] = x; }
+    set_y(y: number): void { this.vec[1] = y; };
+    set_xy(x: number, y: number): void { this.vec[0] = x; this.vec[1] = y; }
+
+    as_vec(): vec2 { return this.vec; }
+}
+
+type PositionableTarget = Coord2D;
+type PositionableMG = MetaGraph<PositionableTarget,void>;
+type RGraphWrapper<G extends IndexedGraph<Coord2D, any>> = RenderGraph<PositionableTarget, G>;
 
 export class GraphEngine {
     // rendering context
@@ -45,9 +65,10 @@ export class GraphEngine {
     private m_mouse_pos: vec2;
     private m_left_clicked: boolean;
     private m_selected_node: number | null;
+    private m_prev_left_click_state: TClickEnum;
 
     // drawables & data structures (all rely on a valid rendering context)
-    private m_graph: CoordRG<CoordMG> | undefined;
+    private m_graph: RGraphWrapper<PositionableMG> | undefined;
     private m_plane: TexturePlane | undefined;
     private m_tracker: MouseTracker | undefined;
 
@@ -62,6 +83,7 @@ export class GraphEngine {
         this.m_left_clicked = false;
         this.m_left_clicked_cback = false;
         this.m_selected_node = null;
+        this.m_prev_left_click_state = ClickEnum.NONE;
     }
 
     /** Static factory for the GraphEngine. Relieves the constructor of having to deal with
@@ -92,10 +114,22 @@ export class GraphEngine {
             );
         }
 
-        const left_click_callback = (event: MouseEvent) => {
+        const left_click_down_callback = (event: MouseEvent) => {
             switch (event.button) {
                 case 0: // LEFT CLICK
                     engine.m_left_clicked_cback = true;
+                    break;
+                case 1: // RIGHT CLICK
+                    break;
+                default: // IDC
+                    break;
+            }
+        }
+
+        const left_click_up_callback = (event: MouseEvent) => {
+            switch (event.button) {
+                case 0: // LEFT CLICK
+                    engine.m_left_clicked_cback = false;
                     break;
                 case 1: // RIGHT CLICK
                     break;
@@ -108,31 +142,31 @@ export class GraphEngine {
             if (event.code == "Escape") {
                 engine.m_selected_node = null;
             }
+
+            console.log("Escape Pressed");
         }
 
         canvas.addEventListener("mousemove", mouse_callback);
-        canvas.addEventListener("mouseup", left_click_callback);
+        canvas.addEventListener("mousedown", left_click_down_callback);
+        canvas.addEventListener("mouseup", left_click_up_callback);
         canvas.addEventListener("keyup", esc_callback);
 
         return engine;
     }
 
+    /** Update the current image/texture bound to the internal "m_plane" of the GraphEngine. */
     public set_background_image(img?: HTMLImageElement | undefined): void {
         if (img === undefined) {
-            console.log("Image is undefined...");
+            // console.log("Image is undefined...");
             this.m_plane = undefined;
             return;
         }
 
-        console.log("Image is defined");
-        this.m_plane = new TexturePlane(this.m_context!, img);
-        if (this.m_plane === undefined) {
-            console.log("MPLANE is UNDEFINED");
-        } else if (this.m_plane === null) {
-            console.log("MPLANE IS NULL");
-        } else {
-            console.log("MPLANE POPULATED");
+        if (this.m_plane !== undefined) {
+            this.m_plane.free(this.m_context!);
         }
+
+        this.m_plane = new TexturePlane(this.m_context!, img);
     }
 
     /** Find the nearest Graph node to the user's mouse within a given threshold. */
@@ -160,8 +194,9 @@ export class GraphEngine {
         return match === -1 ? null : match;
     }
 
+    /** Handles the "add_node" event of the GraphEngine. */
     private add_node(): void {
-        this.m_graph!.peek_mut((g: CoordMG): CoordMG => {
+        this.m_graph!.peek_mut((g: PositionableMG): PositionableMG => {
             g.add_node(Coord2D.from_vec2(this.m_mouse_pos));
             return g;
         });
@@ -169,56 +204,97 @@ export class GraphEngine {
         this.m_selected_node = null;
     }
 
+    /** Handles the "add_edge" event of the GraphEngine. */
     private add_edge(hover_node: number): void {
-        const g: CoordRG<CoordMG> = this.m_graph!;
+        const g: RGraphWrapper<PositionableMG> = this.m_graph!;
         const node_picked: number = this.m_selected_node!;
 
-        if (!g.expose_graph().inner().has_outgoing_to(node_picked, hover_node)) {
-            g.peek_mut((mg: CoordMG): CoordMG => {
+        console.log("Selected node: ", this.m_selected_node);
+
+        if (!g.expose_graph().inner().has_directed_wiff(node_picked, hover_node)) {
+            g.peek_mut((mg: PositionableMG): PositionableMG => {
                 mg.add_edge(node_picked, hover_node);
                 return mg;
             });
         }
     }
 
-    private left_click_update(hover_node: number | null): void {
-        switch (get_lc_states({ node_picked: this.m_selected_node, hover_node})) {
+    /** Update the x-y value of a given node */
+    private move_node(node_idx: number): void {
+        const rg: RGraphWrapper<PositionableMG>= this.m_graph!;
+        rg.peek((g: Readonly<PositionableMG>) => { 
+            g.node_weight(node_idx).set_xy(this.m_mouse_pos[0], this.m_mouse_pos[1]); 
+        });
+
+        rg.make_nodes_dirty();
+        rg.make_edges_dirty();
+    }
+
+
+    /** Helper function to prevent "double clicking" due to holding the left click button. Resets
+     * both m_left_clicked && m_left_clicked_cback to false */
+    private clear_left_click_states() {
+        this.m_left_clicked = false;
+        this.m_left_clicked_cback = false;
+    }
+
+    private state_swerve(lc_state: TClickEnum, hov_node: number | null): TClickEnum {
+        console.log("Selected node: ", this.m_selected_node);
+        if (lc_state == ClickEnum.LC_ADD_EDGE && this.m_graph?.expose_graph().inner().has_directed_wiff(this.m_selected_node!, hov_node!)) {
+            lc_state = ClickEnum.LC_SELECT_NODE;
+        }
+        return lc_state;
+    }
+
+    /** Handler for left click related events */
+    private left_click_update(hover_node: number | null, prev_lc: boolean, prev_lc_state: TClickEnum): TClickEnum {
+        let state_out: TClickEnum = get_lc_states({ node_picked: this.m_selected_node, hover_node, prev_lc, prev_state: prev_lc_state});
+        state_out = this.state_swerve(state_out, hover_node); // last minute state update
+
+        switch (state_out) {
             case ClickEnum.LC_ADD_NODE:
                 this.add_node();
+                this.clear_left_click_states();
                 break;
             case ClickEnum.LC_ADD_EDGE:
                 this.add_edge(hover_node!);
-                this.m_selected_node = null;
+                this.clear_left_click_states();
                 break;
             case ClickEnum.LC_SELECT_NODE:
                 this.m_selected_node = hover_node!;
                 break;
             case ClickEnum.LC_DESELECT_NODE:
                 this.m_selected_node = null;
+                this.clear_left_click_states();
+                break;
+            case ClickEnum.LC_MOVE_NODE_START:
+                break;
+            case ClickEnum.LC_MOVE_NODE:
+                this.move_node(this.m_selected_node!);
                 break;
             default:
                 break;
         }
+        return state_out;
     }
 
     /** Update variables before the next render-call */
-    public update(prev_time: DOMHighResTimeStamp, cur_time: DOMHighResTimeStamp) {
+    public update(prev_time: DOMHighResTimeStamp, cur_time: DOMHighResTimeStamp): void {
         const gl: WebGL2RenderingContext = this.m_context!;
        //  const dt: DOMHighResTimeStamp = (cur_time - prev_time) / 16.67;
 
         // pass on values of our "callback-variables" to "local versions" in update to prevent modification
         this.m_mouse_pos[0] = this.m_mouse_pos_cback.get_x();
         this.m_mouse_pos[1] = this.m_mouse_pos_cback.get_y();
+
+        const prev_lc: boolean = this.m_left_clicked;
         this.m_left_clicked = this.m_left_clicked_cback;
 
         // are we "over" any particular node?
         const hover_node: number | null = this.select(this.m_mouse_pos);
         if (this.m_left_clicked) { 
-            this.left_click_update(hover_node); 
+            this.m_prev_left_click_state = this.left_click_update(hover_node, prev_lc, this.m_prev_left_click_state); 
         }
-
-        this.m_left_clicked = false;
-        this.m_left_clicked_cback = false;
 
         this.m_tracker!.update_position(this.m_mouse_pos);
         this.m_graph!.set_hover_node(gl, hover_node !== null ? hover_node : -1);
