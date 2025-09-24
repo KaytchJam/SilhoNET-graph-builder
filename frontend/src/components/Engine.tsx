@@ -25,8 +25,14 @@ function useUpdateBackground(app_ref: React.RefObject<GraphEngine | null>, image
     }, [image_elem]);
 }
 
+/** Type coupling together the canvas callback & a reference to the app data */
+type AppInstance = {
+    canvas_instantiator: CanvasCallback;
+    app_ref: React.RefObject<GraphEngine | null>;
+}
+
 /** Hook for setting the canvas app */
-function useGraphEngineApp(image_elem?: HTMLImageElement | undefined): CanvasCallback {
+function useGraphEngineApp(image_elem?: HTMLImageElement | undefined): AppInstance {
     const app_data = React.useRef<GraphEngine>(null);
     const canvas_init: CanvasCallback = useCanvasInstantiator([(cv) => { if (!app_data.current) { app_data.current = GraphEngine.build(cv, image_elem); }} ]);
     useUpdateBackground(app_data, image_elem);
@@ -54,16 +60,26 @@ function useGraphEngineApp(image_elem?: HTMLImageElement | undefined): CanvasCal
         };
     }, []);
 
-    return canvas_init;
+    return { canvas_instantiator: canvas_init, app_ref: app_data };
+}
+
+function AttributeCardComponent() {
+    return (
+        <div id="app-attribute-card">
+            <p>This is an Attribute Card</p>
+            <p>Edit the attributes of a node here</p>
+        </div>
+    );
 }
 
 /** Represents the "body" of our GraphEngine app. Includes the canvas as well as the cards for viewing and editing nodes local
  * and global attributes. */
 export function EngineBodyComponent(engine_in: {width: number, height: number, image_elem?: HTMLImageElement | undefined}): React.JSX.Element {
-    const canvas_app_init: CanvasCallback = useGraphEngineApp(engine_in.image_elem);
+    const app_instance: AppInstance = useGraphEngineApp(engine_in.image_elem);
     return (
-        <div>
-            <canvas ref={canvas_app_init} width={engine_in.width} height={engine_in.height}></canvas>
+        <div id="app-canvas-div">
+            <canvas id="app-canvas" ref={app_instance.canvas_instantiator} width={engine_in.width} height={engine_in.height}></canvas>
+            <AttributeCardComponent/>
         </div>
     );
 }
