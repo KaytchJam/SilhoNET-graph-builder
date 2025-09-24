@@ -205,12 +205,14 @@ export class RenderGraph<N extends Positionable, G extends IndexedGraph<N,any>> 
         return u_res_status && u_rad_status && u_hov_status && u_sel_status;
     }
 
+    /** Set the currently hovered-over node for the node shader */
     public set_hover_node(gl: WebGL2RenderingContext, node_id: number): void {
         gl.bindVertexArray(this.node_vao);
         gl.useProgram(this.node_program);
         gl.uniform1i(this.node_hover_uniform_loc, node_id);
     }
 
+    /** Set the currently selected node for the node shader */
     public set_select_node(gl: WebGL2RenderingContext, node_id: number): void {
         gl.bindVertexArray(this.node_vao);
         gl.useProgram(this.node_program);
@@ -328,6 +330,16 @@ export class RenderGraph<N extends Positionable, G extends IndexedGraph<N,any>> 
         M(this.topology);
         return this;
     };
+
+    /** Use this to force a re-render of nodes on the next `draw()` call. */
+    public make_nodes_dirty(): void {
+        this.dirty_nodes = true;
+    }
+
+    /** Use this to force a re-render of edges on the next `draw()` call */
+    public make_edges_dirty(): void {
+        this.dirty_edges = true;
+    }
 
     public expose_graph(): G { return this.topology; }
     public is_dirty(): boolean { return this.dirty_edges || this.dirty_nodes; }
