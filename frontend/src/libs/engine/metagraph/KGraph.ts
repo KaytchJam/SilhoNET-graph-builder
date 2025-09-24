@@ -445,17 +445,19 @@ export class kGraph<N,E> implements IndexedGraph<N,E> {
      * exists between the `source` node and the `wiff` node. */
     public has_directed_wiff(source: node_idx_t, wiff: node_idx_t): boolean {
         const outgoing_iter = this.outgoing(source)[Symbol.iterator]();
-        const incoming_iter = this.outgoing(source)[Symbol.iterator]();
+        const incoming_iter = this.incoming(source)[Symbol.iterator]();
         let result_out = outgoing_iter.next();
         let result_in = incoming_iter.next();
 
         while (!result_in.done || !result_out.done) {
-            if (!result_in.done && result_in.value.node_idx === wiff) {
-                return true;
+            if (!result_in.done) {
+                if (result_in.value.node_idx === wiff) { return true; }
+                result_in = incoming_iter.next();
             }
 
-            if (!result_out.done && result_out.value.node_idx === wiff) {
-                return true;
+            if (!result_out.done) {
+                if (result_out.value.node_idx === wiff) { return true; }
+                result_out = outgoing_iter.next();
             }
         }
 
