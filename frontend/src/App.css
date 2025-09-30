@@ -77,3 +77,37 @@ body {
 }
 
 /** APP PAGE */
+
+/** ENGINE PAGE */
+
+#engine-page-div {
+  margin: 0 auto;
+  justify-content: center;
+  width: 1000px;
+}
+
+#engine-canvas-div {
+  display: flex;
+  align-items: flex-start;
+  margin: 0 auto;
+  justify-content: center;
+  padding: 5px;
+  background-color: black;
+}
+
+#engine-canvas {
+  display: block;
+}
+
+#engine-canvas:focus {
+  outline: none;
+}
+
+#engine-attribute-card {
+  display: block;
+  width: 40%;
+  height: 100%;
+  background-color: #F5F5DC;
+  text-align: center;
+  margin-left: 5px;
+}

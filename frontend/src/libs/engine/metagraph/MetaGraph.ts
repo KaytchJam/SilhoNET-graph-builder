@@ -1,11 +1,51 @@
 import { kGraph, type IndexedGraph, type node_idx_t, type edge_idx_t, type IndexedNeighborhood } from "./KGraph";
 
+export class NodeAttrData {
+    public removable: boolean;
+    public node_values: string[];
+
+    public constructor(removable: boolean = true) {
+        this.removable = removable;
+        this.node_values = [];
+    }
+
+    static empty(size: number, removable: boolean = true): NodeAttrData {
+        const attrdata = new NodeAttrData(removable);
+        attrdata.node_values = new Array(size).fill("");
+        return attrdata;
+    }
+
+    public get(node_idx: number): string {
+        return this.node_values[node_idx];
+    }
+
+    public values(): string[] {
+        return this.node_values;
+    }
+
+    public pop(): void {
+        this.node_values.pop();
+    }
+
+    public push(node_val: string): void {
+        this.node_values.push(node_val);
+    }
+
+    public set(node_idx: number, node_val: string): void {
+        this.node_values[node_idx] = node_val;
+    }
+
+    public is_removable(): boolean {
+        return this.removable;
+    }
+}
+
 export class MetaGraph<N,E> implements IndexedGraph<N,E> {
-    private attribute_map: Map<string,string[]>;
+    private attribute_map: Map<string,NodeAttrData>;
     private topology: kGraph<N,E>;
 
     public constructor() {
-        this.attribute_map = new Map<string,string[]>();
+        this.attribute_map = new Map<string,NodeAttrData>();
         this.topology = new kGraph();
     }
 
@@ -21,29 +61,50 @@ export class MetaGraph<N,E> implements IndexedGraph<N,E> {
     /** Adds a new attribute to the MetaGraph, where all values are set
      * to an empty string. If the attribute already exists, its 
      * previous value array is overwritten as empty strings. */
-    public add_attr(attr: string): MetaGraph<N,E> {
+    public add_attr(attr: string, removable: boolean = true): MetaGraph<N,E> {
         this.attribute_map = this.attribute_map.set(
             attr, 
-            Array(this.attribute_map.values().next().value?.length).fill("")
+            NodeAttrData.empty(this.topology.num_nodes(), removable)
         );
         return this;
     }
 
+    /** Returns whether a particular attribute 'attr' in our map is removable or not */
+    public is_attr_removable(attr: string): boolean {
+        return this.attribute_map.get(attr)!.is_removable();
+    }
+
+    /** Removes an attribute from the attribute map if it is "removable". Returns
+     * whether said attribute was removable or not. */
+    public remove_attr(attr: string): boolean {
+        const removable: boolean = this.is_attr_removable(attr);
+        if (removable) {
+            this.attribute_map.delete(attr)
+        }
+        return removable;
+    }
+
+    /** Forcibly remove an attribute from the attribute map regardless of whether
+     * it is designated as removable or not. */
+    public remove_attr_forced(attr: string): void {
+        this.attribute_map.delete(attr);
+    }
+
     /** Return all the values associated with a given attribute */
     public get_attr_values(attr: string): string[] | undefined {
-        return this.attribute_map.get(attr);
+        return this.attribute_map.get(attr)?.node_values;
     }
 
     /** Return the value of node at `node_index` along a given attribute `attr`.
      * Returns null if the attribute does not exist. */
     public node_attr(attr: string, node_index: node_idx_t): string | null {
-        const attr_vals: string[] | undefined = this.attribute_map.get(attr);
-        return attr_vals != undefined ? attr_vals[node_index] : null;
+        const attr_vals: NodeAttrData | undefined = this.attribute_map.get(attr);
+        return attr_vals != undefined ? attr_vals.get(node_index) : null;
     }
 
     /** Return the value of node at `node_index` along a given attribute `attr` */
     public node_attr_unchecked(attr: string, node_index: node_idx_t): string {
-        return this.attribute_map.get(attr)![node_index];
+        return this.attribute_map.get(attr)!.get(node_index);
     }
 
     /** Adds a node & a new spot to the attribute map arrays */
@@ -87,13 +148,17 @@ export class MetaGraph<N,E> implements IndexedGraph<N,E> {
         return this.topology.num_edges();
     }
 
+    public num_attrs(): number {
+        return this.attribute_map.size;
+    }
+
     public iter_keys(): MapIterator<string> {
         return this.attribute_map.keys();
     }
 
     NodeValues = class NodeValues implements Iterable<[string,string]> {
         readonly node_index: node_idx_t;
-        readonly attribute_map: Map<string,string[]>;
+        readonly attribute_map: Map<string,NodeAttrData>;
 
         constructor(parent: MetaGraph<any,any>, node_index: node_idx_t) {
             this.attribute_map = parent.attribute_map;
@@ -106,12 +171,12 @@ export class MetaGraph<N,E> implements IndexedGraph<N,E> {
             const key_iterator = this.attribute_map[Symbol.iterator]();
             return {
                 next: () => {
-                    const result: IteratorResult<[string,string[]]> = key_iterator.next();
+                    const result: IteratorResult<[string,NodeAttrData]> = key_iterator.next();
                     if (result.done === true) {
                         return { done: true, value: "" };
                     }
 
-                    return { done: false, value: [result.value[0], result.value[1][this.node_index]] };
+                    return { done: false, value: [result.value[0], result.value[1].get(this.node_index)] };
                 }
             };
         }
@@ -155,7 +220,7 @@ export class MetaGraph<N,E> implements IndexedGraph<N,E> {
         if (swap_target !== n) {
             for (let attribute of this.iter_keys()) {
                 const attr_list = this.attribute_map.get(attribute)!;
-                attr_list[n] = attr_list[swap_target];
+                attr_list.node_values[n] = attr_list.node_values[swap_target];
                 attr_list.pop();
             }
         }
@@ -164,7 +229,7 @@ export class MetaGraph<N,E> implements IndexedGraph<N,E> {
     }
 }
 
-/** Foo */
+/** Foo (Testing) */
 function foo(): void {
     let mg: MetaGraph<void,void> = new MetaGraph<void,void>();
     

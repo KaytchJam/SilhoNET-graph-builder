@@ -63,11 +63,49 @@ function useGraphEngineApp(image_elem?: HTMLImageElement | undefined): AppInstan
     return { canvas_instantiator: canvas_init, app_ref: app_data };
 }
 
+function add_attribute(form_data: FormData, g: GraphEngine, state_setter: React.Dispatch<React.SetStateAction<number>>): void {
+    const item_text: string | undefined = form_data.get("new-attr")?.toString();
+    if (item_text !== undefined) {
+        const item_text_trimmed: string = item_text.trim();
+        console.log(`Inserting New Attribute: ${item_text_trimmed}`);
+
+        if (item_text_trimmed.length > 0 && !g.contains(item_text_trimmed)) {
+            g.add_attribute(item_text_trimmed, true);
+            state_setter(g.num_attributes()); // stage a re-render
+        }
+    }
+}
+
+
+type ListDisplayProps<T> = {
+  item_iter: Iterable<T>;
+  renderItem: (item: T, index: number) => React.ReactNode;
+};
+
+function ListDisplayComponent<T>({ item_iter, renderItem }: ListDisplayProps<T>) {
+    const items = Array.from(item_iter);
+    return <div>{items.map(renderItem)}</div>;
+}
+
+/** Component for displaying the Global & Individual Node attributes */
 function AttributeCardComponent() {
+    // const [_, num_attrs_update] = React.useState(current!.num_attributes());
+
     return (
-        <div id="app-attribute-card">
+        <div id="engine-attribute-card">
+            <h3>Global Node Attributes</h3>
             <p>This is an Attribute Card</p>
             <p>Edit the attributes of a node here</p>
+            {/* 
+                <ListDisplayComponent
+                    item_iter={current!.iter_attributes()}
+                    renderItem={ (item: string, index: number) => <div key={index}>{item}</div>}
+                />
+                <form action={(f: FormData)=>add_attribute(f, current!, num_attrs_update)}>
+                    <input type="text" maxLength={20} name="new-attr" className="new-attr-input" required></input>
+                    <button type="submit">Add Attribute</button>
+                </form> 
+            */}
         </div>
     );
 }
@@ -77,8 +115,8 @@ function AttributeCardComponent() {
 export function EngineBodyComponent(engine_in: {width: number, height: number, image_elem?: HTMLImageElement | undefined}): React.JSX.Element {
     const app_instance: AppInstance = useGraphEngineApp(engine_in.image_elem);
     return (
-        <div id="app-canvas-div">
-            <canvas id="app-canvas" ref={app_instance.canvas_instantiator} width={engine_in.width} height={engine_in.height}></canvas>
+        <div id="engine-canvas-div" style={{height: engine_in.height.toString() + "px", width: engine_in.width / 0.6}}>
+            <canvas id="engine-canvas" ref={app_instance.canvas_instantiator} width={engine_in.width} height={engine_in.height} tabIndex={1}></canvas>
             <AttributeCardComponent/>
         </div>
     );
@@ -89,7 +127,7 @@ export function EnginePage(cv_shape: {width: number, height: number }): React.JS
     const [image_in, set_image_in] = React.useState<HTMLImageElement | undefined>(undefined);
 
     return (
-        <div>
+        <div id="engine-page-div" style={{width: cv_shape.width / 0.6}}>
             <h4>Welcome to the Engine Page. You can either draw your graph over:</h4>
             <ol type="a">
                 <li>A blank canvas</li>

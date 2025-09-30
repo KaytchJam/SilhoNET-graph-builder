@@ -86,26 +86,8 @@ export class GraphEngine {
         this.m_prev_left_click_state = ClickEnum.NONE;
     }
 
-    /** Static factory for the GraphEngine. Relieves the constructor of having to deal with
-     * the undefined data members. Either returns a fully constructed `GraphEngine` or `null` if
-     * an error occurs while determining the graph context. */
-    public static build(canvas: HTMLCanvasElement, txt_img?: HTMLImageElement | undefined): GraphEngine | null {
-        const engine: GraphEngine = new GraphEngine();
-        const ctxt: WebGL2RenderingContext | null = canvas.getContext("webgl2");
-
-        if (ctxt === null) {
-            console.error("Was unable to instantiate a WebGL2RenderingConext from the input HTMLCanvasElement.");
-            return null;
-        }
-
-        engine.m_context = ctxt;
-        engine.m_graph = new RenderGraph(engine.m_context, new MetaGraph(), GraphEngine.S_NODE_RADIUS, GraphEngine.S_EDGE_GIRTH);
-        engine.m_tracker = new MouseTracker(engine.m_context);
-
-        if (txt_img !== undefined) {
-            engine.m_plane = new TexturePlane(engine.m_context, txt_img);
-        }
-
+    /** Attach callbacks associated with `engine` to the input HTMLCanvasElement */
+    private static attach_callbacks(engine: GraphEngine, canvas: HTMLCanvasElement): void {
         const mouse_callback = (event: MouseEvent) => {
             const bb: DOMRect = canvas.getBoundingClientRect();
             engine.m_mouse_pos_cback.set_xy(
@@ -142,22 +124,60 @@ export class GraphEngine {
             if (event.code == "Escape") {
                 engine.m_selected_node = null;
             }
-
-            console.log("Escape Pressed");
         }
 
         canvas.addEventListener("mousemove", mouse_callback);
         canvas.addEventListener("mousedown", left_click_down_callback);
         canvas.addEventListener("mouseup", left_click_up_callback);
         canvas.addEventListener("keyup", esc_callback);
+    }
+
+    /** Static factory for the GraphEngine. Relieves the constructor of having to deal with
+     * the undefined data members. Either returns a fully constructed `GraphEngine` or `null` if
+     * an error occurs while determining the graph context. */
+    public static build(canvas: HTMLCanvasElement, txt_img?: HTMLImageElement | undefined): GraphEngine | null {
+        const engine: GraphEngine = new GraphEngine();
+        const ctxt: WebGL2RenderingContext | null = canvas.getContext("webgl2");
+
+        if (ctxt === null) {
+            console.error("Was unable to instantiate a WebGL2RenderingConext from the input HTMLCanvasElement.");
+            return null;
+        }
+
+        engine.m_context = ctxt;
+        engine.m_graph = new RenderGraph(engine.m_context, new MetaGraph(), GraphEngine.S_NODE_RADIUS, GraphEngine.S_EDGE_GIRTH);
+        engine.m_tracker = new MouseTracker(engine.m_context);
+
+        if (txt_img !== undefined) {
+            engine.m_plane = new TexturePlane(engine.m_context, txt_img);
+        }
+        
+        // Callback setup & insertion of fixed attributes
+        GraphEngine.attach_callbacks(engine, canvas);
+        engine.m_graph.expose_graph().add_attr("Name", false);
 
         return engine;
+    }
+
+    public add_attribute(attribute_name: string, removable: boolean): void {
+        this.m_graph!.expose_graph().add_attr(attribute_name, removable);
+    }
+
+    public contains(attr: string) {
+        return this.m_graph!.expose_graph().has_attr(attr);
+    }
+
+    public num_attributes(): number {
+        return this.m_graph!.expose_graph().num_attrs();
+    }
+
+    public iter_attributes(): MapIterator<string> {
+        return this.m_graph!.expose_graph().iter_keys();
     }
 
     /** Update the current image/texture bound to the internal "m_plane" of the GraphEngine. */
     public set_background_image(img?: HTMLImageElement | undefined): void {
         if (img === undefined) {
-            // console.log("Image is undefined...");
             this.m_plane = undefined;
             return;
         }
@@ -230,7 +250,6 @@ export class GraphEngine {
         rg.make_edges_dirty();
     }
 
-
     /** Helper function to prevent "double clicking" due to holding the left click button. Resets
      * both m_left_clicked && m_left_clicked_cback to false */
     private clear_left_click_states() {
@@ -238,9 +257,9 @@ export class GraphEngine {
         this.m_left_clicked_cback = false;
     }
 
+    /** Double check the state recieved from 'get_lc_states' and change it last minute if necessary */
     private state_swerve(lc_state: TClickEnum, hov_node: number | null): TClickEnum {
-        console.log("Selected node: ", this.m_selected_node);
-        if (lc_state == ClickEnum.LC_ADD_EDGE && this.m_graph?.expose_graph().inner().has_directed_wiff(this.m_selected_node!, hov_node!)) {
+        if (lc_state == ClickEnum.LC_ADD_EDGE && this.m_graph!.expose_graph().inner().has_directed_wiff(this.m_selected_node!, hov_node!)) {
             lc_state = ClickEnum.LC_SELECT_NODE;
         }
         return lc_state;
@@ -281,7 +300,7 @@ export class GraphEngine {
     /** Update variables before the next render-call */
     public update(prev_time: DOMHighResTimeStamp, cur_time: DOMHighResTimeStamp): void {
         const gl: WebGL2RenderingContext = this.m_context!;
-       //  const dt: DOMHighResTimeStamp = (cur_time - prev_time) / 16.67;
+        const dt: DOMHighResTimeStamp = (cur_time - prev_time) / 16.67; // ( 1000 frames / 60 frames ) * 1 second
 
         // pass on values of our "callback-variables" to "local versions" in update to prevent modification
         this.m_mouse_pos[0] = this.m_mouse_pos_cback.get_x();
