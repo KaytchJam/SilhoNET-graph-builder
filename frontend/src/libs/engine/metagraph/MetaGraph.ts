@@ -62,10 +62,12 @@ export class MetaGraph<N,E> implements IndexedGraph<N,E> {
      * to an empty string. If the attribute already exists, its 
      * previous value array is overwritten as empty strings. */
     public add_attr(attr: string, removable: boolean = true): MetaGraph<N,E> {
-        this.attribute_map = this.attribute_map.set(
-            attr, 
-            NodeAttrData.empty(this.topology.num_nodes(), removable)
-        );
+        if (!this.attribute_map.has(attr)) {
+            this.attribute_map = this.attribute_map.set(
+                attr, 
+                NodeAttrData.empty(this.topology.num_nodes(), removable)
+            );
+        }
         return this;
     }
 
