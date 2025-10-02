@@ -163,6 +163,14 @@ export class GraphEngine {
         this.m_graph!.expose_graph().add_attr(attribute_name, removable);
     }
 
+    public remove_attribute(attribute_name: string): void {
+        this.m_graph!.expose_graph().remove_attr_forced(attribute_name);
+    }
+
+    public is_removeable(attribute_name: string): boolean {
+        return this.m_graph!.expose_graph().is_attr_removable(attribute_name);
+    }
+
     public contains(attr: string) {
         return this.m_graph!.expose_graph().has_attr(attr);
     }
