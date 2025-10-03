@@ -183,6 +183,10 @@ export class GraphEngine {
         return this.m_graph!.expose_graph().iter_keys();
     }
 
+    public expose_graph(): RGraphWrapper<PositionableMG> {
+        return this.m_graph!;
+    }
+
     /** Update the current image/texture bound to the internal "m_plane" of the GraphEngine. */
     public set_background_image(img?: HTMLImageElement | undefined): void {
         if (img === undefined) {
