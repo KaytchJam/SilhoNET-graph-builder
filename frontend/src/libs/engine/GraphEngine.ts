@@ -54,6 +54,8 @@ type PositionableTarget = Coord2D;
 type PositionableMG = MetaGraph<PositionableTarget,void>;
 type RGraphWrapper<G extends IndexedGraph<Coord2D, any>> = RenderGraph<PositionableTarget, G>;
 
+type UpdateCallback = (selected_node: number | null) => void;
+
 export class GraphEngine {
     // rendering context
     private m_context: WebGL2RenderingContext | undefined;
@@ -72,6 +74,8 @@ export class GraphEngine {
     private m_plane: TexturePlane | undefined;
     private m_tracker: MouseTracker | undefined;
 
+    private m_update_callbacks: UpdateCallback[] = [];
+
     // other
     private static S_NODE_RADIUS: number = 5.0;
     private static S_EDGE_GIRTH: number = 2.0;
@@ -84,6 +88,10 @@ export class GraphEngine {
         this.m_left_clicked_cback = false;
         this.m_selected_node = null;
         this.m_prev_left_click_state = ClickEnum.NONE;
+    }
+
+    public add_update_callback(uc: UpdateCallback): void {
+        this.m_update_callbacks.push(uc);
     }
 
     /** Attach callbacks associated with `engine` to the input HTMLCanvasElement */
@@ -179,12 +187,28 @@ export class GraphEngine {
         return this.m_graph!.expose_graph().num_attrs();
     }
 
+    public get_node_attr_value(attr_name: string, node: number): string | null {
+        return this.expose_graph().expose_graph().node_attr(attr_name, node);
+    }
+
+    public update_node_attr_value(attr_name: string, node: number, value: string): void {
+        const meta: PositionableMG = this.expose_graph().expose_graph();
+        meta.set_node_value(node, attr_name, value);
+    }
+
     public iter_attributes(): MapIterator<string> {
         return this.m_graph!.expose_graph().iter_keys();
     }
 
-    public expose_graph(): RGraphWrapper<PositionableMG> {
+    /** Expose the render graph used by the GraphEngine */
+    public expose_graph(): Readonly<RGraphWrapper<PositionableMG>> {
         return this.m_graph!;
+    }
+
+    /** Returns the current selected node. If no node is currently selected 
+     * then -1 is returned. */
+    public get_selected(): number {
+        return this.m_selected_node ? this.m_selected_node : -1;
     }
 
     /** Update the current image/texture bound to the internal "m_plane" of the GraphEngine. */
@@ -322,6 +346,7 @@ export class GraphEngine {
         this.m_left_clicked = this.m_left_clicked_cback;
 
         // are we "over" any particular node?
+        const prev_selected = this.m_selected_node;
         const hover_node: number | null = this.select(this.m_mouse_pos);
         if (this.m_left_clicked) { 
             this.m_prev_left_click_state = this.left_click_update(hover_node, prev_lc, this.m_prev_left_click_state); 
@@ -330,6 +355,11 @@ export class GraphEngine {
         this.m_tracker!.update_position(this.m_mouse_pos);
         this.m_graph!.set_hover_node(gl, hover_node !== null ? hover_node : -1);
         this.m_graph!.set_select_node(gl, this.m_selected_node !== null ? this.m_selected_node : -1);
+
+        // signal all update callbacks
+        for (let uc of this.m_update_callbacks) {
+            uc(this.m_selected_node);
+        }
     }
 
     /** Draw all the important things for our engine */
