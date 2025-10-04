@@ -11,7 +11,7 @@ function add_attribute(form_data: FormData, g: GraphEngine, state_setter: ReactS
     const item_text: string | undefined = form_data.get("new-attr")?.toString();
     if (item_text !== undefined) {
         const item_text_trimmed: string = item_text.trim();
-        console.log(`Inserting New Attribute: ${item_text_trimmed}`);
+        // console.log(`Inserting New Attribute: ${item_text_trimmed}`);
 
         if (item_text_trimmed.length > 0 && !g.contains(item_text_trimmed)) {
             g.add_attribute(item_text_trimmed, true);
@@ -89,7 +89,7 @@ function NodeAttributeComponent(args: {
     update_func: (event: React.ChangeEvent<HTMLInputElement>) => void
 }) {
     return (
-        <label key={args.attr_name} className="node-attr-label"> {args.attr_name}:
+        <label key={args.attr_name} className="node-attr-label"> <b>{args.attr_name}:</b>
             <input type="text" value={args.engine_ref.current!.get_node_attr_value(args.attr_name, args.selected_node)!}
                 className="node-attr-input" maxLength={20} onChange={args.update_func}/>
         </label>
