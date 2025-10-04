@@ -5,7 +5,9 @@ import { ListDisplayComponent } from "./utils/ListDisplayComponent";
 import { useGraphEngineApp } from "../hooks/useGraphEngineApp";
 import { type MetaGraphExporter, GraphMLExporter, DOTExporter, EdgeListExporter } from "../libs/engine/GraphExporter";
 
-function add_attribute(form_data: FormData, g: GraphEngine, state_setter: React.Dispatch<React.SetStateAction<number>>): void {
+type ReactSetter<T> = React.Dispatch<React.SetStateAction<T>>;
+
+function add_attribute(form_data: FormData, g: GraphEngine, state_setter: ReactSetter<number>): void {
     const item_text: string | undefined = form_data.get("new-attr")?.toString();
     if (item_text !== undefined) {
         const item_text_trimmed: string = item_text.trim();
@@ -18,7 +20,7 @@ function add_attribute(form_data: FormData, g: GraphEngine, state_setter: React.
     }
 }
 
-function remove_attribute(g: GraphEngine, attr_name: string, state_setter: React.Dispatch<React.SetStateAction<number>>): void {
+function remove_attribute(g: GraphEngine, attr_name: string, state_setter: ReactSetter<number>): void {
     g.remove_attribute(attr_name);
     state_setter(g.num_attributes());
 }
@@ -27,13 +29,30 @@ type Ref<T> = {
     current: T;
 }
 
-function useIsGraphEngineUp(engine_ref: Ref<React.RefObject<GraphEngine | null>>, setter: React.Dispatch<React.SetStateAction<boolean>>): void {
+function useEngineNonNullWatcher(engine_ref: Ref<React.RefObject<GraphEngine | null>>, setter: ReactSetter<boolean>): void {
     React.useEffect(() => {
         setter(engine_ref.current.current != undefined && engine_ref.current.current != null)
     }, [engine_ref.current.current]);
 }
 
-function GlobalAttributeComponent(args: { g: GraphEngine, attr_name: string, setter: React.Dispatch<React.SetStateAction<number>> }): React.JSX.Element {
+function useAttributeCardSetup(
+    engine_ref: Ref<React.RefObject<GraphEngine | null>>, 
+    bool_setter: React.Dispatch<React.SetStateAction<boolean>>,
+    num_setter: React.Dispatch<React.SetStateAction<number>>
+): void {
+    React.useEffect(() => {
+        const is_nonnull = engine_ref.current.current != undefined && engine_ref.current.current != null;
+        bool_setter(is_nonnull);
+        if (is_nonnull) {
+            const engine: GraphEngine = engine_ref.current.current!;
+            engine.add_update_callback((selected_node: number | null) => {
+                num_setter(selected_node != null ? selected_node : -1 );
+            });
+        }
+    }, [engine_ref]);
+}
+
+function GlobalAttributeComponent(args: { g: GraphEngine, attr_name: string, setter: ReactSetter<number> }): React.JSX.Element {
     return (
         <div className="global-attr-div">
             <p className="global-attr-p"><b>{args.attr_name}</b></p>
@@ -42,39 +61,91 @@ function GlobalAttributeComponent(args: { g: GraphEngine, attr_name: string, set
     )
 }
 
+function GlobalAttributeCardComponent(engine_ref: Ref<React.RefObject<GraphEngine | null>>) {
+    const [_, num_attrs_update] = React.useState(0);
+    const engine = engine_ref.current.current!;
+    const attr_list = Array.from(engine.iter_attributes());
+    const attr2node = (item: string) => <GlobalAttributeComponent key={item} g={engine} attr_name={item} setter={num_attrs_update}/>;
+
+    return (
+        <>
+            <h3>Global Node Attributes</h3>
+            <p>Add or remove global node attributes here.</p>
+            <div id="global-attrs-div">
+                <ListDisplayComponent item_list={attr_list} renderFunc={attr2node} />
+            </div>
+            <form action={(f: FormData)=>add_attribute(f, engine!, num_attrs_update)}>
+                <input type="text" maxLength={20} name="new-attr" className="new-attr-input" required></input>
+                <button type="submit">Add Attribute</button>
+            </form>
+        </>
+    )
+}
+
+function NodeAttributeComponent(args: { 
+    engine_ref: React.RefObject<GraphEngine | null>, 
+    attr_name: string, 
+    selected_node: number,
+    update_func: (event: React.ChangeEvent<HTMLInputElement>) => void
+}) {
+    return (
+        <label key={args.attr_name} className="node-attr-label"> {args.attr_name}:
+            <input type="text" value={args.engine_ref.current!.get_node_attr_value(args.attr_name, args.selected_node)!}
+                className="node-attr-input" maxLength={20} onChange={args.update_func}/>
+        </label>
+    )
+}
+
+function update_node_attribute_value(
+    event: React.ChangeEvent<HTMLInputElement>, 
+    engine: GraphEngine, 
+    attr_name: string,
+    selected_node: number, 
+    prev_setter_val: number,
+    setter: ReactSetter<number>
+) {
+    const val: string = event.target.value;
+    engine.update_node_attr_value(attr_name, selected_node, val);
+    setter((prev_setter_val + 1) % 5);
+}
+
+function NodeAttributeCardComponent(args: {current: React.RefObject<GraphEngine | null>, selected_node: number}) {
+    const [toggle, update_toggle] = React.useState(0);
+    const attr_list = Array.from(args.current.current!.iter_attributes());
+    const attr2node = (item: string) => <NodeAttributeComponent engine_ref={args.current} attr_name={item} selected_node={args.selected_node} update_func={(event) => {update_node_attribute_value(event, args.current.current!, item, args.selected_node, toggle, update_toggle)}} />
+
+    return (
+        <>
+            <h3>Local Node Attributes</h3>
+            <p>Node {args.selected_node} Data</p>
+            <p>A node has been selected. Feast your eyes upon its card. And update it so your heart's content! [Groan] </p>
+            <div id="node-attrs-div">
+                <ListDisplayComponent item_list={attr_list} renderFunc={attr2node}/>
+            </div>
+        </>
+    );
+}
+
 /** Component for displaying the Global & Individual Node attributes */
 function AttributeCardComponent(engine_ref: Ref<React.RefObject<GraphEngine | null>>): React.JSX.Element {
     const [engine_up, set_engine_up] = React.useState(false);
-    const [num_attrs, num_attrs_update] = React.useState(0);
-    useIsGraphEngineUp(engine_ref, set_engine_up);
+    const [selected_node, set_node_selected] = React.useState(-1);
+    useAttributeCardSetup(engine_ref, set_engine_up, set_node_selected);
     
-    const engine: GraphEngine | null = engine_ref.current.current;
+    const card_out = selected_node != -1 
+        ? <NodeAttributeCardComponent current={engine_ref.current} selected_node={selected_node}/>
+        : <GlobalAttributeCardComponent current={engine_ref.current}/>;
+
     return (
         <div id="engine-attribute-card">
-            <h3>Global Node Attributes</h3>
-            <p>This is the Global Attribute Card</p>
-            <p>Add or remove global node attributes here.</p>
-            { engine_up && 
-                <div id="global-attrs-div">
-                    <ListDisplayComponent
-                        item_list={Array.from(engine!.iter_attributes())}
-                        renderFunc={ (item: string) => <GlobalAttributeComponent key={item} g={engine!} attr_name={item} setter={num_attrs_update}/>}
-                    />
-                </div>
-            }
-            { engine_up && num_attrs < 10 && 
-                <form action={(f: FormData)=>add_attribute(f, engine!, num_attrs_update)}>
-                    <input type="text" maxLength={20} name="new-attr" className="new-attr-input" required></input>
-                    <button type="submit">Add Attribute</button>
-                </form>
-            }  
+            { engine_up && card_out }
         </div>
     );
 }
 
 function GraphSerializerComponent(engine_ref: Ref<React.RefObject<GraphEngine | null>>) {
     const [engine_up, set_engine_up] = React.useState(false);
-    useIsGraphEngineUp(engine_ref, set_engine_up);
+    useEngineNonNullWatcher(engine_ref, set_engine_up);
     const [exportFormat, setExportFormat] = React.useState<"graphml" | "gv" | "edgelist">("graphml");
     const [graphString, setGraphString] = React.useState("");
 
@@ -103,9 +174,9 @@ function GraphSerializerComponent(engine_ref: Ref<React.RefObject<GraphEngine | 
         };
 
     return (
-        <div>
+        <>
             { engine_up && 
-                <div>
+                <>
                     <label>Export format: </label>
                     <select value={exportFormat} onChange={(e) => setExportFormat(e.target.value as any)}>
                         <option value="graphml">GraphML</option>
@@ -114,9 +185,9 @@ function GraphSerializerComponent(engine_ref: Ref<React.RefObject<GraphEngine | 
                     </select>
                     <button onClick={handleExport}>Export Graph</button>
                     <div id="engine-export-string"><p>{graphString}</p></div>
-                </div>
+                </>
             }
-        </div>
+        </>
     );
 }
 
