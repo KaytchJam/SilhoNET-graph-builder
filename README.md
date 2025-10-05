@@ -18,7 +18,7 @@ One motivation of this project was to build a tool for myself that would let me 
 - DOT
 - EdgeList
 
-The second motivation of this project was found while reading Matthew O. Jackson's text, "Social and Economic Networks." Within the text various example networks are shown and used to explore different metrics over graphs. One of the earliest is the 15th Century Florentine Marriage Network. 
+The second motivation of this project was found while reading Matthew O. Jackson's text, ["Social and Economic Networks"](https://books.google.com/books/about/Social_and_Economic_Networks.html?id=fEH8EAAAQBAJ). Within the text various example networks are shown and used to explore different metrics over graphs. One of the earliest is the 15th Century Florentine Marriage Network. 
 
 ![15th Century Florentine Marriage Network](./screenshots/florence_network.JPG "The Florentine Marriage Network (Matthew O. Jackson)")
 
