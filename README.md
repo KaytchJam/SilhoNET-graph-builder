@@ -22,7 +22,7 @@ The second motivation of this project was found while reading Matthew O. Jackson
 
 ![15th Century Florentine Marriage Network](./screenshots/florence_network.JPG "The Florentine Marriage Network (Matthew O. Jackson)")
 
-While most of the graphs aren't too large or complicated, it would still be pretty annoying writing down de-serialized "text" representations of them  all manually. Instead, what I wanted was a way to 'trace' or 'sketch' over the networks in the text and easily serialize them. SilhoNET lets you upload a picture to the canvas and draw your graph over it, making the task of serializing these networks a straightforward ordeal.
+While most of the graphs aren't too large or complicated, it would still be pretty annoying writing/typing down text representations of them  all manually. Instead, what I wanted was a way to 'trace' or 'sketch' over the networks in the text and easily serialize them. SilhoNET lets you upload a picture to the canvas and draw your graph over it, making the task of serializing these networks a straightforward ordeal.
 
 Here's the above example network traced and serialized:
 
