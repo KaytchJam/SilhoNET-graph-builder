@@ -118,7 +118,7 @@ function NodeAttributeCardComponent(args: {current: React.RefObject<GraphEngine 
         <>
             <h3>Local Node Attributes</h3>
             <p>Node {args.selected_node} Data</p>
-            <p>A node has been selected. Feast your eyes upon its card. And update it so your heart's content! [Groan] </p>
+            <p>Attributes:</p>
             <div id="node-attrs-div">
                 <ListDisplayComponent item_list={attr_list} renderFunc={attr2node}/>
             </div>

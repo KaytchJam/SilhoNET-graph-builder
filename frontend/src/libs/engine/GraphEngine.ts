@@ -346,7 +346,6 @@ export class GraphEngine {
         this.m_left_clicked = this.m_left_clicked_cback;
 
         // are we "over" any particular node?
-        const prev_selected = this.m_selected_node;
         const hover_node: number | null = this.select(this.m_mouse_pos);
         if (this.m_left_clicked) { 
             this.m_prev_left_click_state = this.left_click_update(hover_node, prev_lc, this.m_prev_left_click_state); 
