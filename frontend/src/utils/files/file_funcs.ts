@@ -26,10 +26,16 @@ function file_to_image(file: File): Promise<HTMLImageElement> {
  * you'd like to receive: `input_name`, and a generic function `setter` that takes in an HTMLImageElement
  * as an argument. Converts the File from input `input_name` into an HTMLImageElement and passes it into
  * the function F `setter`. */
-export async function accept_file<F extends (arg: HTMLImageElement) => void>(f: FormData, input_name: string, setter: F): Promise<void> {
+export async function accept_file<F extends (arg: HTMLImageElement | undefined) => void>(f: FormData, input_name: string, setter: F): Promise<void> {
     const input_file: FormDataEntryValue | null = f.get(input_name);
-    if (input_file) {
+
+    if (input_file && (input_file as File).size > 0) {
+        console.log("Valid file");
         const input_image: HTMLImageElement = await file_to_image(input_file as File);
         setter(input_image);
+        console.log("image set");
+    } else {
+        console.log("Invalid file");
+        setter(undefined);
     }
 }

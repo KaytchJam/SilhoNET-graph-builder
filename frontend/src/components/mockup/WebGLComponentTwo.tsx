@@ -1,11 +1,11 @@
 import React from "react"
 import { vec2 } from "gl-matrix";
-import { TexturePlane } from "../libs/engine/gui/TexturePlane";
-import { kGraph, type node_idx_t } from "../libs/engine/metagraph/KGraph";
-import { RenderGraph, make_drawnode, type DrawNode } from "../libs/engine/GraphRenderer";
-import { ClickEnum, get_lc_states, type TClickEnum } from "../libs/engine/UIStates";
-import { type MetaGraphExporter, GraphMLExporter, DOTExporter } from "../libs/engine/GraphExporter";
-import { MouseTracker } from "../libs/engine/gui/MouseTracker";
+import { TexturePlane } from "../../libs/engine/gui/TexturePlane";
+import { kGraph, type node_idx_t } from "../../libs/engine/metagraph/KGraph";
+import { RenderGraph, make_drawnode, type DrawNode } from "../../libs/engine/GraphRenderer";
+import { ClickEnum, get_lc_states, type TClickEnum } from "../../libs/engine/UIStates";
+import { type MetaGraphExporter, GraphMLExporter, DOTExporter } from "../../libs/engine/GraphExporter";
+import { MouseTracker } from "../../libs/engine/gui/MouseTracker";
 
 // Convert "image" File types into HTMLImageElements
 function file_to_image(file: File): Promise<HTMLImageElement> {

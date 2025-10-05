@@ -77,3 +77,78 @@ body {
 }
 
 /** APP PAGE */
+
+/** ENGINE PAGE */
+
+#engine-page-div {
+  margin: 0 auto;
+  justify-content: center;
+  width: 1000px;
+}
+
+#engine-canvas-div {
+  display: flex;
+  align-items: flex-start;
+  margin: 0 auto;
+  justify-content: center;
+  padding: 5px;
+  background-color: black;
+}
+
+#engine-canvas {
+  display: block;
+}
+
+#engine-canvas:focus {
+  outline: none;
+}
+
+#engine-attribute-card {
+  display: block;
+  width: 40%;
+  height: 100%;
+  background-color: #F5F5DC;
+  text-align: center;
+  margin-left: 5px;
+}
+
+.global-attr-div {
+  display: flex;
+  width: 60%;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #abb69b;
+  border-radius: 5px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+.global-attr-p {
+  display: inline-block;
+  padding-left: 10px;
+}
+
+.global-attr-b {
+  display: inline-block;
+  margin-right: 10px;
+  color: white;
+  background-color: black;
+  border-radius: 5px;;
+}
+
+#global-attrs-div {
+  justify-content: center;
+  max-height: 50%;
+  overflow-y: scroll;
+}
+
+#engine-export-string {
+  margin-top: 20px;
+  white-space: pre-wrap;
+  background-color: white;
+  max-height: 20%;
+  overflow-y: auto;
+  font-family: 'Courier New', Courier, monospace;
+}

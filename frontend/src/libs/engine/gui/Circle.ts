@@ -34,17 +34,11 @@ export class CircleInstance {
     }
 
     /** Return the number of points used to construct this circle */
-    public num_points(): number {
-        return this.vertex_data.length / 2;
-    }
+    public num_points(): number { return this.vertex_data.length / 2; }
 
     /** Retrieve the radius of this circle  */
-    public radius(): number {
-        return this.rad;
-    }
+    public radius(): number { return this.rad; }
 
     /** Extract the underlying vertex data of this circle */
-    public data(): Float32Array {
-        return this.vertex_data;
-    }
+    public data(): Float32Array { return this.vertex_data; }
 }

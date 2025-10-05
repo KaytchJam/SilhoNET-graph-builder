@@ -2,8 +2,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import './App.css';
 
 // My components
-import { WelcomePage } from "./components/Welcome";
-import { EnginePage } from "./components/Engine";
+import { WelcomePage } from "./components/WelcomePage";
+import { EnginePage } from "./components/EnginePage";
 
 function App() {
   return (
