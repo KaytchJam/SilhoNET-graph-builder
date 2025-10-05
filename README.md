@@ -10,7 +10,7 @@ Still a WIP. Clone the project via `git clone`. Once cloned to your machine, you
 
 ### Motivation
 
-While there are many graph building tools online like Graph Builder (CS Academy), Graph Visualizer (John & Junhyun), and GraphVizz (PortiESP), they are mostly (1) self-contained, and (2) concerned with teaching standard Graph algorithms (Dikjstra, Katsuraja, BFS, DFS, etc.). To further expand on the "self-contained" point, the extent to which they allow for the "exporting" of created graphs is typically limited to importing & exporting within the app itself, rather than to external applications or code, which results in many of these apps having very specialized export formats for the graphs created.
+While there are many graph building tools online like [Graph Builder](https://csacademy.com/app/graph_editor/) (CS Academy), [Graph Visualizer](https://www.graphvizer.com/) (John & Junhyun), and [GraphVizz](https://www.graphvizz.com/) (PortiESP), they are mostly (1) self-contained, and (2) concerned with teaching standard Graph algorithms (Dijkstra, Kosaraju, BFS, DFS, etc.). To further expand on the "self-contained" point, the extent to which they allow for the "exporting" of created graphs is typically limited to importing & exporting within the app itself, rather than to external applications or code, which results in many of these apps having very specialized export formats for the graphs created.
 
 One motivation of this project was to build a tool for myself that would let me export my graph in various formats easily. As such, this tool currently supports the following graph serialization formats:
 
